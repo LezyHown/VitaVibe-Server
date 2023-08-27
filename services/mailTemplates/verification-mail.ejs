@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Verify Your Account</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #272727;">
+	<div style="max-width: 600px; margin: 0 auto; padding: 2rem; background-color: #272727; border-radius: 0.5rem; box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.2);">
+		<img src='https://drive.google.com/uc?id=1aqS6JoEt8FRUeRszBziNUgzVFYxGLYja' style="display: block; margin: 0 auto; max-width: 200px;">
+		<h1 style="font-size: 1.4rem; font-weight: 600; color: #FFD20C; margin: 0; text-align: center;">Verify Your Account</h1>
+		<p style="font-size: 1.15rem; color: white; opacity: 0.8; margin: 0 0 1rem 0; text-align: center;">Welcome, <%= firstName %>!</p>
+		<p style="font-size: 0.95rem; color: white; opacity: 0.8; text-align: center;">Thank you for creating an account. Please use the OTP code below to verify your account:</p>
+		<span style="display: flex; width: 100%; font-size: 1.5rem; font-weight: bold; margin: 1rem 0; color: #FFD20C; text-align:center;"><%= otp %></span>
+		<p style="font-size: 0.95rem; color: gray; text-align: center;">If you did not create an account, please ignore this message.</p>
+		<p style="font-size: 1rem; color: gray; text-align: center;">Best regards, <p style="font-size: 16px; color: #FFD20C; font-weight: bold; text-decoration: none; transition: opacity 0.3s, color 0.3s; text-align: center;"><a href="<%= website %>" style="color: #FFD20C; font-weight: bold; text-decoration: none;"><%= brand %> Store</a></p></p>
+		<a href="<%= link %>" style="display: inline-block; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; text-align: center; color: #272727; background-color: rgba(255, 210, 12, 0.8); border: 1px solid #FFD20C; border-radius: 0.125rem; text-decoration: none; transition: background-color 0.3s, color 0.3s;" class="btn">Verify Your Account</a>
+	</div>
+	<div style="padding-top: 2rem; padding-bottom: 2rem; color: gray; text-align: center;">
+		<p style="margin: 0; opacity: 0.8;">&copy; <%= new Date().getFullYear() %> All rights reserved.</p>
+		<p><a href="<%= website %>" style="font-size: 16px; color: #FFD20C; font-weight: bold; text-decoration: none; transition: opacity 0.3s, color 0.3s;" class="brand-link"><%= brand %> Store</a></p>
+	</div>
+</body>
+</html>

@@ -1,10 +1,10 @@
 import { Schema, Types, model } from "mongoose";
 
-const AddressSchema = new Schema(
+const addressSchema = new Schema(
   {
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    phoneNumber: { type: Number, required: true },
+    phoneNumber: { type: String, required: true },
     street: { type: String, required: true },
     city: { type: String, required: true },
     homeNumber: { type: String, required: true },
@@ -20,7 +20,9 @@ const personalInfoSchema = new Schema(
     lastName: { type: String, required: true },
     email: { type: String, unique: true, required: true },
     password: { type: String, required: true },
-    birthDate: Date,
+    gender: { type: String, enum: ["male", "female", "other"], default: "male" },
+    birthDate: { type: Date, default: null },
+    phoneNumber: { type: String, default: null }
   },
   { _id: false }
 );
@@ -46,7 +48,7 @@ const userSchema = new Schema(
   {
     personalInfo: { type: personalInfoSchema, required: true },
     addressList: {
-      list: { type: [AddressSchema], default: [] },
+      list: { type: [addressSchema], default: [] },
       selected: { type: Number, default: 0 },
     },
     orders: [{ type: Types.ObjectId, ref: "Order" }],

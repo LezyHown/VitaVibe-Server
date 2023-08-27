@@ -1,6 +1,7 @@
 import { HttpStatusCode } from "axios";
-import httpErrorLib from "http-errors";
+import httpErrors from "http-errors";
 
 export function createHttpError(status: HttpStatusCode, message?: object | string) {
-  return httpErrorLib(status, { message });
+  console.log(status, message);
+  return httpErrors(status, { message: message });
 }

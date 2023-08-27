@@ -1,29 +1,30 @@
 import { Response } from "express";
 import { Types } from "mongoose";
+import jwt from "jsonwebtoken";
+import ms from "ms";
 import "dotenv/config";
 
 import UserDto, { IUserPayload } from "../dtos/userDto";
-import jwt from "jsonwebtoken";
-import ms from "ms";
-import tokenModel from "../mongodb/models/tokenModel";
+import tokenModel, { ACCESS_EXPIRY_TIME, REFRESH_EXPIRY_TIME } from "../mongodb/models/tokenModel";
+import { createHttpError } from "./httpErrorService";
+import { HttpStatusCode } from "axios";
 
 type TokenType = "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"; 
 type TokenSet = { access: string; refresh: string };
-const REFRESH_TOKEN_COOKIENAME = "REFRESH_TOKEN";
+const REFRESH_COOKIENAME = "REFRESH_TOKEN";
 
 class TokenService {
   /**
    * Генерирует токены и задаёт refresh в HTTP куки
    */
   public generateTokenSet(res: Response, payload: IUserPayload): TokenSet {
-    const refreshExpiry = "30d";
     const tokens = {
-      access: jwt.sign(payload, String(process.env.JWT_ACCESS_SECRET), { expiresIn: "20m" }),
-      refresh: jwt.sign(payload, String(process.env.JWT_REFRESH_SECRET), { expiresIn: refreshExpiry }),
+      access: jwt.sign(payload, String(process.env.JWT_ACCESS_SECRET), { expiresIn: ACCESS_EXPIRY_TIME }),
+      refresh: jwt.sign(payload, String(process.env.JWT_REFRESH_SECRET), { expiresIn: REFRESH_EXPIRY_TIME }),
     };
 
-    res.cookie(REFRESH_TOKEN_COOKIENAME, tokens.refresh, {
-      maxAge: ms(refreshExpiry),
+    res.cookie(REFRESH_COOKIENAME, tokens.refresh, {
+      maxAge: ms(REFRESH_EXPIRY_TIME),
       httpOnly: true,
       sameSite: "none",
       secure: false, // 'true' if use HTTPS
@@ -32,11 +33,22 @@ class TokenService {
     return tokens;
   }
 
-  public async removeRefreshToken(userId: string, res: Response){
+  public generateAccessToken(payload: IUserPayload, time?: string){
+    return jwt.sign(payload, String(process.env.JWT_ACCESS_SECRET), { expiresIn: time ?? "20m" });
+  }
+
+  public async removeRefreshToken(refresh: string, res: Response){
+    const removeCookieToken = () => res.clearCookie(REFRESH_COOKIENAME);
+    const refreshToken = await tokenModel.findOne({ "refreshToken": refresh }); 
+    
+    if (!refreshToken) {
+      removeCookieToken();
+      throw createHttpError(HttpStatusCode.Unauthorized, "Need sign-in again");
+    }
+    
     // Убираем токен из token коллекции
-    await tokenModel.findOneAndRemove({ "user": new Types.ObjectId(userId) }).exec();
-    // Очищаем куки от токена
-    res.clearCookie(REFRESH_TOKEN_COOKIENAME);
+    await refreshToken.deleteOne();
+    removeCookieToken();
   }
 
   public validateToken(token: string, type: TokenType): IUserPayload | null {

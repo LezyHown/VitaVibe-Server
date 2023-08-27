@@ -1,5 +1,3 @@
-import { ErrorOutputType } from "../../middlewares/tools/anyMiddlewarePassed";
-
 export interface RegistrationBody {
   email: string;
   password: string;
@@ -7,5 +5,3 @@ export interface RegistrationBody {
   lastName: string;
   subscribe?: boolean;
 };
-
-export const SHOW_LAST_ERROR: ErrorOutputType = "LAST"; 

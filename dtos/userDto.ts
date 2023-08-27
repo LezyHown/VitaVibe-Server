@@ -1,4 +1,6 @@
-import { keys, pick } from "lodash";
+import { pick } from "lodash";
+
+type UserGender = "male" | "female" | "other";
 
 export interface IUserPayload {
   _id: string;
@@ -6,13 +8,23 @@ export interface IUserPayload {
     firstName: string;
     lastName: string;
     email: string;
+    gender: UserGender;
+    phoneNumber?: string;
+    birthDate?: Date;
   };
   activation: {
     isActivated: boolean;
-    otpExpiryMs: number;
   };
   accessToken?: string;
 }
+
+export type UserProfileData = IUserPayload["personalInfo"] & {
+  changePassword?: {
+    current?: string;
+    newPassword?: string;
+    repeatPassword?: string;
+  }
+};
 
 export default class UserDto {
   private _payload: IUserPayload;
@@ -23,8 +35,10 @@ export default class UserDto {
       "personalInfo.email",
       "personalInfo.firstName",
       "personalInfo.lastName",
+      "personalInfo.birthDate",
+      "personalInfo.phoneNumber",
+      "personalInfo.gender",
       "activation.isActivated",
-      "activation.otpExpiryMs",
       "accessToken",
     ]) as IUserPayload;
   }

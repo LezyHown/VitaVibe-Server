@@ -22,20 +22,22 @@ export function tokenMiddleware(tokenType: TokenType, skipError?: boolean) {
   return async function payloadToBody(req: Request, res: Response, next: NextFunction) {
     const { REFRESH_TOKEN } = req.cookies;
     const isAccessTokenType = tokenType === "ACCESS_TOKEN";
-    const accessToken = getAuthorizationAccess(req.headers.authorization);
-
-    const token = isAccessTokenType ? accessToken : REFRESH_TOKEN;
+    const token = isAccessTokenType ? getAuthorizationAccess(req.headers.authorization) : REFRESH_TOKEN;
     const secretKey = isAccessTokenType ? "JWT_ACCESS_SECRET" : "JWT_REFRESH_SECRET";
 
     const payload = tokenService.validateToken(token, secretKey);
 
-    if (!payload && skipError) {
-      next();
-    } else if (!payload) {
+    if (!payload && !skipError) {
       next(createHttpError(HttpStatusCode.Unauthorized, `Invalid ${tokenType.toLocaleLowerCase()}`));
-    } else {
-      req.body = { payload };
-      next();
+      return;
     }
+    
+    req.body = { ...req.body, payload };
+
+    if (payload && isAccessTokenType) {
+      payload.accessToken = token;
+    }
+
+    next();
   };
 }

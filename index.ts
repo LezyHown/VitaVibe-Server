@@ -1,41 +1,35 @@
-import config from "./config/config";
-import "dotenv/config";
-import dbconnection from "./mongodb/connection";
-
 import express from "express";
+import path from "path";
 import cors from "cors";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
-import rateLimit from "express-rate-limit";
 import errorHandler from "strong-error-handler";
+import config, { createRequestLimiter } from "./config/config";
+import dbconnection from "./mongodb/connection";
+import "dotenv/config";
 
 // Настройка API
 const app = express();
-const limiter = rateLimit({
-  windowMs: config.ms("1s"),
-  max: 20,
-  message: "max 20 requests per second",
-  keyGenerator: (req: express.Request) => req.ip,
-});
-
 dbconnection.startConnection();
 
 // Использование необнодимых middlewares
+app.use(express.static(path.join(__dirname, "public")));
 app.use(
   cors({
     origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
-app.use(limiter);
+app.use(createRequestLimiter("1s", 20));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // API Роутинг
-import userRouter from "./routes/userRotute";
+import userRoutes from "./routes/userRoutes";
 
-app.use("/api/user", userRouter);
+app.use("/api/user", userRoutes);
+
 app.use(errorHandler({ log: true, rootProperty: false }));
 
 // Настройка server process

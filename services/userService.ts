@@ -1,14 +1,18 @@
 import { Response } from "express";
 import speakeasy from "speakeasy";
 import { compare, hash } from "bcrypt";
+import { createHttpError } from "./httpErrorService";
+import axios, { HttpStatusCode } from "axios";
+import "dotenv/config";
+
 import userModel from "../mongodb/models/userModel";
 import newsSubscriber from "../mongodb/models/newsSubscriberModel";
-import { createHttpError } from "./httpErrorService";
-import { HttpStatusCode } from "axios";
-import UserDto, { IUserPayload } from "../dtos/userDto";
+import UserDto, { IUserPayload, UserProfileData } from "../dtos/userDto";
 import tokenService from "./tokenService";
 import mailService from "./mailService";
+
 import { maskEmail } from "./tools/maskData";
+import { HttpStatus, SendOtpResult } from "./tools/httpStatus";
 
 interface ICredentials {
   firstName: string;
@@ -17,25 +21,13 @@ interface ICredentials {
   email: string;
 }
 
-export type SendOtpResult = {
-  success: boolean;
-  message: string;
-  reachedTime?: number;
-};
-
-export type ActivationResult = {
-  statusCode: HttpStatusCode;
-  success: boolean;
-  message: string;
-};
-
 class UserService {
   public async createNewAccount(credentials: ICredentials, newsSubscription: boolean) {
     const { email, password, firstName, lastName } = credentials;
 
     const foundedUser = await userModel.findOne({ "personalInfo.email": email });
     if (foundedUser) {
-      throw createHttpError(400, "email has been used before");
+      throw createHttpError(400, "Email has been used before");
     }
 
     const encryptedPassword = await hash(password, 8);
@@ -71,8 +63,7 @@ class UserService {
     res: Response
   ): Promise<IUserPayload> {
     const user = await userModel.findOne({ "personalInfo.email": credentials.email });
-    const error = createHttpError(HttpStatusCode.Unauthorized, "Invalid login credentials");
-
+    const error = createHttpError(HttpStatusCode.Unauthorized, "Invalid credentials");
     const isSuccessLogin = await compare(credentials.password, String(user?.personalInfo.password));
 
     if (!user || !isSuccessLogin) {
@@ -80,9 +71,8 @@ class UserService {
     }
 
     const userDto = new UserDto(user);
-    await tokenService.removeRefreshToken(user.id, res);
-    
     const tokens = tokenService.generateTokenSet(res, userDto.getPayload());
+
     await tokenService.saveToken(user.id, tokens.refresh);
     userDto.setAccessToken(tokens.access);
 
@@ -96,7 +86,7 @@ class UserService {
       throw createHttpError(HttpStatusCode.Unauthorized, "must be authorized in system");
     }
 
-    await tokenService.removeRefreshToken(payload._id, res);
+    await tokenService.removeRefreshToken(refreshToken, res);
 
     return payload;
   }
@@ -105,7 +95,7 @@ class UserService {
     const user = await userModel.findById(payload._id);
 
     if (!user) {
-      throw createHttpError(HttpStatusCode.InternalServerError);
+      throw createHttpError(HttpStatusCode.Unauthorized, "no user provided");
     }
 
     const { otpExpiryMs } = user.activation;
@@ -128,28 +118,26 @@ class UserService {
       user.activation.otpExpiryMs = actualDate.getTime();
       await user?.save();
 
-      return { success: true, message: "otp was success sent" };
+      return { statusCode: 200, message: "otp was success sent" };
     } else {
       const reachedTime = otpExpiryMs - actualDate.getTime();
 
-      return { success: false, message: "please, wait some time", reachedTime };
+      return { statusCode: 403, message: "please, wait some time", reachedTime };
     }
   }
 
-  public async activate(payload: IUserPayload, otp: string): Promise<ActivationResult> {
-    const user = await userModel.findOne({ "personalInfo.email": payload.personalInfo.email });
-    const maskedEmail = maskEmail(payload.personalInfo.email);
+  public async activate(payload: IUserPayload, otp: string): Promise<HttpStatus> {
+    const user = await userModel.findOne({ "personalInfo.email": payload?.personalInfo.email });
+    const maskedEmail = maskEmail(payload?.personalInfo.email);
 
     if (!user) {
       return {
         message: "this link unsupport for this user anymore",
-        success: false,
         statusCode: HttpStatusCode.BadRequest,
       };
     } else if (user.activation.isActivated) {
       return {
         message: `account ${maskedEmail} already activated`,
-        success: false,
         statusCode: HttpStatusCode.Conflict,
       };
     }
@@ -159,7 +147,7 @@ class UserService {
     const settings = user.activation.secret?.settings;
 
     const verifiedCodes = [
-      // OTP с ограничением более 4 минут
+      // OTP с ограничением исходя из настроек в бд
       speakeasy.totp.verify({
         secret: secretOtp,
         token: otp,
@@ -171,36 +159,128 @@ class UserService {
     const activationSuccess = verifiedCodes.some((code) => code === true);
 
     if (!activationSuccess) {
-      console.log(
-        `[${serverTime}] Invalid OTP code, accepted from user ${payload.personalInfo.email}: ${otp}`
-      );
+      console.log(`[${serverTime}] Invalid OTP ${otp} accepted from user ${payload.personalInfo.email}`);
 
-      return { message: "invalid otp", statusCode: HttpStatusCode.BadRequest, success: false };
+      return { message: "invalid otp", statusCode: HttpStatusCode.BadRequest };
     }
 
     user.activation.isActivated = true;
     await user.save();
 
     console.log(
-      `[${serverTime}] The valid OTP code was accepted for the user ${payload.personalInfo.email}: ${otp}`
+      `[${serverTime}] OTP ${otp} was accepted for the user ${payload.personalInfo.email} successfully`
     );
 
     return {
       statusCode: 200,
       message: `successfully activated with email: ${maskedEmail}!`,
-      success: true,
     };
   }
 
   public async refresh(payload: IUserPayload, refreshToken: string, res: Response): Promise<IUserPayload> {
     const actualUser = (await userModel.findById(payload._id))?.toObject() as object;
     const user = new UserDto(actualUser);
+    await tokenService.removeRefreshToken(refreshToken, res);
+
     const tokens = tokenService.generateTokenSet(res, payload);
-    
     await tokenService.saveToken(payload._id, tokens.refresh);
     user.setAccessToken(tokens.access);
 
-    return user.getPayload(); 
+    return user.getPayload();
+  }
+
+  public async actualPayload(oldPayload: IUserPayload): Promise<IUserPayload> {
+    const user = await userModel.findById(oldPayload._id);
+
+    if (!user) {
+      throw createHttpError(500);
+    }
+    const userDto = new UserDto(user.toObject());
+    userDto.setAccessToken(oldPayload.accessToken ?? "");
+
+    return userDto.getPayload();
+  }
+
+  public async sendRecovery(email: string) {
+    const user = await userModel.findOne({ "personalInfo.email": email });
+
+    if (user) {
+      const payload = new UserDto(user).getPayload();
+      const recoveryAccessToken = tokenService.generateAccessToken(payload, "10m");
+      mailService.sendRecovery(payload.personalInfo.email, recoveryAccessToken, user.personalInfo.password);
+    }
+  }
+
+  public validateRecoveryTimeout(timeout: string) {
+    const error = createHttpError(HttpStatusCode.Gone, "the link is no longer available for recovery");
+    if (!timeout) {
+      throw error;
+    }
+    const [currentDate, timeoutDate] = [new Date(), new Date(timeout)];
+    const timeIsOver = currentDate > timeoutDate;
+
+    if (timeIsOver) {
+      throw error;
+    }
+  }
+
+  public async resetPassword(payload: IUserPayload, password: string, res: Response) {
+    const user = await userModel.findById(payload._id);
+
+    if (!user) {
+      throw createHttpError(HttpStatusCode.NotFound, "user not found");
+    }
+
+    user.personalInfo.password = await hash(password, 8);
+    await user.save();
+    const userDto = new UserDto(user);
+    const tokenSet = tokenService.generateTokenSet(res, userDto.getPayload());
+    userDto.setAccessToken(tokenSet.access);
+
+    return userDto.getPayload();
+  }
+
+  public async updateProfile(
+    payload: IUserPayload,
+    profile: UserProfileData,
+    isChangePassword: boolean
+  ): Promise<IUserPayload> {
+    const user = await userModel.findById(payload._id);
+
+    if (user) {
+      const { personalInfo } = user?.toObject();
+
+      // Изменение данных пользователя на новые
+      user.personalInfo = Object.assign(personalInfo, profile);
+      await user.save();
+
+      if (isChangePassword) {
+        const newPayload = await axios
+          .post(
+            process.env.API_URL + "/api/user/reset/password",
+            {
+              prevPassword: profile.changePassword?.current,
+              password: profile.changePassword?.newPassword,
+            },
+            {
+              headers: { Authorization: "Bearer " + payload.accessToken },
+            }
+          )
+          .then(({ data }: { data: { payload: IUserPayload } }) => data.payload)
+          .catch(({ response }) => {
+            throw createHttpError(400, response.data.message);
+          });
+
+        return newPayload;
+      } else {
+        const userDto = new UserDto(user.toObject());
+        userDto.setAccessToken(payload.accessToken as string);
+
+        return userDto.getPayload();
+      }
+    } else {
+      throw createHttpError(500);
+    }
   }
 }
 
