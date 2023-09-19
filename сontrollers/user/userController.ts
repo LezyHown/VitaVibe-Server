@@ -1,7 +1,7 @@
 import qs from "qs";
 import { HttpStatusCode } from "axios";
 import { RegistrationBody } from "./types";
-import { TypedRequestBody } from "../../routes/types";
+import { TypedRequestBody } from "../types";
 import { Request, NextFunction, Response } from "express";
 import { createHttpError } from "../../services/httpErrorService";
 import { encryptParams } from "../../middlewares/cryptoParamsMiddleware";
@@ -13,15 +13,19 @@ import {
   emailSchema,
   otpSchema,
   passwordSchema,
+  userAddressListSchema,
+  userInvoiceSchema,
   userLoginSchema,
   userProfileSchema,
   userRegistrationSchema,
-} from "./validationSchemaList";
+} from "./userValidation";
 
 import UserDto, { IUserPayload, UserProfileData } from "../../dtos/userDto";
 import tokenService from "../../services/tokenService";
 import mailService from "../../services/mailService";
 import userService from "../../services/userService";
+import userModel, { InvoiceAddress, InvoiceDeliveryEnum, UserAddress } from "../../mongodb/models/userModel";
+import Joi from "joi";
 
 class UserController {
   async registration(req: TypedRequestBody<RegistrationBody>, res: Response, next: NextFunction) {
@@ -220,6 +224,92 @@ class UserController {
       const newPayload = await userService.updateProfile(payload, req.body.profile, isChangePassword);
 
       res.status(200).send({ payload: newPayload });
+    } catch (err) {
+      next(err);
+    } finally {
+      next();
+    }
+  }
+
+  async updateAddress(
+    req: TypedRequestBody<{ payload: IUserPayload; address: UserAddress; select: number }>,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const { payload: { _id }, address, select } = req.body;
+      const user = await userModel.findById(_id);
+
+      await validationService.validateFields(address, userAddressListSchema);
+
+      if (!isValidPhoneNumber(address.phoneNumber)) {
+        throw createHttpError(403, { errors: [{ field: "phoneNumber", value: "Invalid Phone Number" }] });
+      }
+
+      if (user) {
+        await validationService.validateField(
+          String(select),
+          Joi.number().min(0).max(user.addressList.list.length).required(),
+          "select"
+        );
+
+        user.addressList.list[select] = address as any;
+        user.addressList.selected = select;
+        await user.save();
+
+        res.status(200).send({ addressList: user.addressList.list });
+      } else {
+        throw createHttpError(500, "account is missing");
+      }
+    } catch (err) {
+      next(err);
+    } finally {
+      next();
+    }
+  }
+
+  async removeAddress(req: TypedRequestBody<{ payload: IUserPayload, select: number }>, res: Response, next: NextFunction) {
+    try {
+      const { payload: { _id }, select } = req.body;
+      const user = await userModel.findById(_id);
+
+      if (user) {
+        await validationService.validateField(
+          String(select),
+          Joi.number().min(0).max(user.addressList.list.length - 1).required(),
+          "select"
+        );
+
+        user.addressList.list.splice(select, 1);
+        await user.save();
+
+        res.status(200).send({ addressList: user.addressList.list });
+      } else {
+        throw createHttpError(500, "account is missing");
+      }
+
+    } catch (err) {
+      next(err);
+    } finally {
+      next();
+    }
+  }
+
+  async updateInvoiceData(req: TypedRequestBody<{ payload: IUserPayload, invoiceAddress: InvoiceAddress }>, res: Response, next: NextFunction) {
+    try {
+      const { payload: { _id }, invoiceAddress } = req.body;
+      const user = await userModel.findById(_id);
+
+      await validationService.validateFields(invoiceAddress, userInvoiceSchema);
+
+      if (user) {
+        user.invoiceAddress = invoiceAddress;
+        await user.save();
+        res.status(200).send({ success: true, invoiceAddress });
+      } 
+      else {
+        throw createHttpError(500, "account is missing");
+      }
     } catch (err) {
       next(err);
     } finally {

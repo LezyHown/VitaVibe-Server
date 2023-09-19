@@ -3,7 +3,7 @@ import validationService from "../services/validationService";
 import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcrypt";
 
-import { passwordSchema } from "../сontrollers/user/validationSchemaList";
+import { passwordSchema } from "../сontrollers/user/userValidation";
 
 import userModel from "../mongodb/models/userModel";
 import { IUserPayload } from "../dtos/userDto";

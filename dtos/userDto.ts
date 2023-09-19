@@ -1,9 +1,12 @@
 import { pick } from "lodash";
+import { InvoiceAddress, InvoiceDeliveryEnum, UserAddress } from "../mongodb/models/userModel";
 
 type UserGender = "male" | "female" | "other";
 
 export interface IUserPayload {
   _id: string;
+  addressList: { list: UserAddress, selected: number };
+  invoiceAddress: InvoiceAddress;
   personalInfo: {
     firstName: string;
     lastName: string;
@@ -32,6 +35,8 @@ export default class UserDto {
   constructor(user: object) {
     this._payload = pick(user, [
       "_id",
+      "addressList",
+      "invoiceAddress",
       "personalInfo.email",
       "personalInfo.firstName",
       "personalInfo.lastName",

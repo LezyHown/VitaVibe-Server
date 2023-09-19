@@ -63,11 +63,10 @@ class UserService {
     res: Response
   ): Promise<IUserPayload> {
     const user = await userModel.findOne({ "personalInfo.email": credentials.email });
-    const error = createHttpError(HttpStatusCode.Unauthorized, "Invalid credentials");
     const isSuccessLogin = await compare(credentials.password, String(user?.personalInfo.password));
 
     if (!user || !isSuccessLogin) {
-      throw error;
+      throw createHttpError(HttpStatusCode.Unauthorized, "Invalid credentials");
     }
 
     const userDto = new UserDto(user);
@@ -212,15 +211,15 @@ class UserService {
   }
 
   public validateRecoveryTimeout(timeout: string) {
-    const error = createHttpError(HttpStatusCode.Gone, "the link is no longer available for recovery");
+    const error = () => createHttpError(HttpStatusCode.Gone, "the link is no longer available for recovery");
     if (!timeout) {
-      throw error;
+      throw error();
     }
     const [currentDate, timeoutDate] = [new Date(), new Date(timeout)];
     const timeIsOver = currentDate > timeoutDate;
 
     if (timeIsOver) {
-      throw error;
+      throw error();
     }
   }
 

@@ -12,9 +12,11 @@ class ValidationService {
       const errors = (err as ValidationError).details?.map((error, index) => {
         const field = customNames?.[index] ?? error.context?.key;
         const value = error.context?.value || 'required';
-        const label = error.context?.label !== field && error.context?.label;
-    
-        return { field, value: label || value };
+        // Ручная ошибка Joi .label("Text error...")
+        const validLabel = String(error.context?.label) !== "field";
+        const label = validLabel && error.context?.label;
+                
+        return { field, value, label, details: error.message };
       }) || [];
     
       throw createHttpError(400, { success: false, errors });

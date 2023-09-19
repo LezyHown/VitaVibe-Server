@@ -34,5 +34,8 @@ userRoutes.post(
 
 /* ВЗАЕМОДЕЙСТВИЕ */
 userRoutes.post("/update/profile", tokenMiddleware("ACCESS_TOKEN"), userController.updateProfile);
+userRoutes.patch("/address", tokenMiddleware("ACCESS_TOKEN"), userController.updateAddress);
+userRoutes.delete("/address", tokenMiddleware("ACCESS_TOKEN"), userController.removeAddress);
+userRoutes.patch("/invoice", tokenMiddleware("ACCESS_TOKEN"), userController.updateInvoiceData);
 
 export default userRoutes;
