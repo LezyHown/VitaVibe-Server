@@ -7,7 +7,7 @@ import { createHttpError } from "../../services/httpErrorService";
 import { isValidObjectId } from "mongoose";
 import { SEARCH_COLORS } from "../../services/productSearchConstants";
 import productService, { searchColors } from "../../services/productService";
-import { productGenderSchema, productQuerySchema } from "./productsValidation";
+import { productGenderSchema, productQuerySchema, sortBySchema } from "./productsValidation";
 
 class ProductsController {
   /**
@@ -29,30 +29,34 @@ class ProductsController {
    */
   async search(req: Request, res: Response, next: NextFunction) {
     try {
-      const { q, skip, minPrice, maxPrice, discount, gender = "all", exactMode = false } = req.query as any;
+      const {
+        q,
+        skip,
+        minPrice,
+        maxPrice,
+        discount,
+        sortByPrice,
+        gender = "all",
+        exactMode = false,
+      } = req.query as any;
       var { colors } = req.query as any;
 
       // ====================================================
       // Поиск цветов в запросе и настройка параметра colors
       // ====================================================
-      if (!colors) {
-        const queryColors = searchColors(q);
-        if (queryColors) {
-          colors = queryColors;
-        }
-      }
+      colors = (colors && searchColors(colors + " " + q)) ?? searchColors(q) ?? undefined;
 
       // =============================
       // Валидация параметров поиска
       // =============================
-      const validColors = Array.isArray(colors) && Boolean(searchColors(colors.join(" ")));
-      if (colors && !validColors) {
+      if (colors === null) {
         throw createHttpError(400, {
           errors: { field: "colors", value: "Choose available colors" },
           available: SEARCH_COLORS,
         });
       }
 
+      await validationService.validateField(sortByPrice, sortBySchema, "sortByPrice");
       await validationService.validateField(q, productQuerySchema, "q");
       await validationService.validateField(gender, productGenderSchema, "gender");
 
@@ -64,6 +68,7 @@ class ProductsController {
         minPrice,
         maxPrice,
         discount,
+        sortByPrice,
         exactMode
       );
 

@@ -27,6 +27,7 @@ class ProductService {
     minPrice?: string,
     maxPrice?: string,
     discount?: string,
+    sortByPrice?: "asc" | "desc",
     exactMode: boolean = false
   ) {
     // ================================
@@ -37,10 +38,12 @@ class ProductService {
       ? { $or: [{ "variants.name": regexQuery }, { "variants.subTitle": regexQuery }] }
       : { $text: { $search: q, $caseSensitive: false } };
 
-    const searchByIndexes = !exactMode ? { score: { $meta: "textScore" } } as object : {};
+    const searchByIndexes = !exactMode ? ({ score: { $meta: "textScore" } } as object) : {};
     const searchByColor = colors &&
       colors.length > 0 && { "variants.color": new RegExp(`${colors.join("|")}`, "i") };
     const searchByDiscount = discount && { "variants.oldPrice": { $exists: true } };
+
+    const applyPriceSort = sortByPrice && ({ "variants.price": sortByPrice === "asc" ? 1 : -1 } as object);
 
     // =====================================================
     // Фомирование поискового запроса для модели продуктов
@@ -78,9 +81,10 @@ class ProductService {
         "variants.oldPrice": 1,
         "variants.images": { $slice: 2 },
       })
-      .sort({ 
+      .sort({
         "variants.clicks": -1,
-        ...searchByIndexes 
+        ...searchByIndexes,
+        ...applyPriceSort,
       })
       .skip(Number(skip ?? 0))
       .limit(MAX_SEARCH_RESULTS);
@@ -113,9 +117,16 @@ class ProductService {
         .value()
     );
 
-    return { totalCount, length: products.length, allSizes, products };
+    return {
+      totalCount,
+      length: products.length,
+      allSizes,
+      products: products.filter(
+        ({ variants }) => variants.length > 0 && variants.every(({ images }) => images.length > 0)
+      ),
+    };
   }
-  async getProduct(id: string){
+  async getProduct(id: string) {
     var product = await productModel.findById(id).select("-variants.clicks -variants.available._id");
 
     return product;

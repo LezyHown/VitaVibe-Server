@@ -54,6 +54,7 @@ ProductVariant.index({
   subTitle: 1,
   color: 1,
   gender: 1,
+  price: 1
 });
 
 export default model("Product", Product);
