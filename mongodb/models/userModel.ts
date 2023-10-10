@@ -90,7 +90,7 @@ const userSchema = new Schema(
         list: []
       }
     },
-    invoiceAddress: { type: InvoiceAddressSchema, required: true },
+    invoiceAddress: InvoiceAddressSchema,
     orders: { type: [Types.ObjectId], default: [], ref: "Order" },
     newsSubscriber: { type: Types.ObjectId, ref: "NewsSubscriber", required: false, default: null },
     activation: { type: activationSchema, required: true },
