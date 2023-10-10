@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Order</title>
+    <style>
+      body {
+        background-color: #ffd20c;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #272727;
+        border-radius: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid white;
+      }
+
+      th {
+        background-color: #272727;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Ваше замовлення № <%= orderNum %></h1>
+      <p>Інформація про доставку:</p>
+      <p>Адреса доставки:</p>
+      <ul>
+        <li>Ім'я: <%= deliveryAddress.firstName %></li>
+        <li>Прізвище: <%= deliveryAddress.lastName %></li>
+        <li>Номер телефону: <%= deliveryAddress.phoneNumber %></li>
+        <li>Вулиця: <%= deliveryAddress.street %></li>
+        <li>Місто: <%= deliveryAddress.city %></li>
+        <li>Будинок: <%= deliveryAddress.homeNumber %></li>
+        <li>Поштовий індекс: <%= deliveryAddress.postCode %></li>
+        <li>Додаткова інформація: <%= deliveryAddress.additionalInfo %></li>
+      </ul>
+      <p>Тип доставки: <%= deliveryType %></p>
+      <p>Дата замовлення: <%= orderDate.toLocaleString() %></p>
+
+      <h2>Товари</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Назва</th>
+            <th>Ціна</th>
+            <th>Розміри та кількість</th>
+            <th>Зображення</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const productId in paymentVariants) { %> <% const product = paymentVariants[productId]; %>
+          <tr>
+            <td><%= product.name + product.subTitle %></td>
+            <td><%= product.price %> <%= product.currency %></td>
+            <td>
+              <% for (const size in product.sizes) { %> <%= size %> - <%= product.sizes[size].quantity %><br />
+              <% } %>
+            </td>
+            <td><img src="<%= product.image %>" alt="<%= product.name %>" width="100" /></td>
+          </tr>
+          <% } %>
+        </tbody>
+      </table>
+
+      <p>Загальна сума замовлення: <%= totalPrice %> <%= currency %></p>
+      <p>Загальна кількість товарів: <%= totalCount %></p>
+    </div>
+  </body>
+</html>

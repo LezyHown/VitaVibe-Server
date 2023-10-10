@@ -5,8 +5,8 @@ import validationService from "../../services/validationService";
 import { createHttpError } from "../../services/httpErrorService";
 
 import { isValidObjectId } from "mongoose";
-import { SEARCH_COLORS } from "../../services/productSearchConstants";
-import productService, { searchColors } from "../../services/productService";
+import { SEARCH_COLORS } from "../../services/products/productSearchConstants";
+import productService, { searchColors } from "../../services/products/productService";
 import { productGenderSchema, productQuerySchema, sortBySchema } from "./productsValidation";
 
 class ProductsController {
@@ -17,10 +17,12 @@ class ProductsController {
    * Для выполнения поиска необходимо передать параметры запроса:
    * - q: Обязательный параметр для поиска (query запрос).
    * - skip: Параметр для пропуска результатов (опциональный).
+   * - sizes: Параметр для фильтрации по размеру (опциональный).
    * - gender: Параметр для фильтрации по полу (по умолчанию "all").
    * - minPrice: Минимальная цена продукта (опциональный).
    * - maxPrice: Максимальная цена продукта (опциональный).
    * - discount: Фильтр по наличию скидки (опциональный).
+   * - sortByPrice: Сортирока цены, low-to-high "asc" и high-to-low "desc" (опциональный, по умолчанию без сортировки).
    * - exactMode: Флаг для точного поиска (опциональный, по умолчанию false).
    * - colors: Массив цветов для фильтрации по цветам (опциональный).
    *
@@ -35,17 +37,18 @@ class ProductsController {
         minPrice,
         maxPrice,
         discount,
+        sizes,
         sortByPrice,
         gender = "all",
-        exactMode = false,
       } = req.query as any;
-      var { colors } = req.query as any;
+      var { colors, exactMode = "false" } = req.query as any;
 
       // ====================================================
       // Поиск цветов в запросе и настройка параметра colors
       // ====================================================
       colors = (colors && searchColors(colors + " " + q)) ?? searchColors(q) ?? undefined;
-
+      exactMode = exactMode === "true";
+      
       // =============================
       // Валидация параметров поиска
       // =============================
@@ -65,6 +68,7 @@ class ProductsController {
         skip,
         gender,
         colors,
+        sizes,
         minPrice,
         maxPrice,
         discount,
@@ -72,7 +76,7 @@ class ProductsController {
         exactMode
       );
 
-      res.status(200).send({ ...searchResults });
+      res.status(200).send(searchResults);
     } catch (err) {
       next(err);
     } finally {

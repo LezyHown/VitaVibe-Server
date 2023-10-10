@@ -13,7 +13,7 @@ export const lastNameSchema = joi
 export const otpSchema = joi.string().pattern(/\d{6}/).required();
 export const genderSchema = joi.string().valid("male", "female", "other").required();
 export const changePasswordSchema = joi.object({
-  current: passwordSchema.label("need to type your password"),
+  currentPassword: passwordSchema.label("need to type your password"),
   newPassword: passwordSchema.not(joi.ref("current")).label("repeats current password"),
   repeatPassword: passwordSchema.valid(joi.ref("newPassword")).label("doesn't equals with the new password"),
 });

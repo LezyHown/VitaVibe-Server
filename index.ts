@@ -3,7 +3,6 @@ import path from "path";
 import cors from "cors";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
-import { queryParser } from "express-query-parser";
 import errorHandler from "strong-error-handler";
 import config, { createRequestLimiter } from "./config/config";
 import dbconnection from "./mongodb/connection";
@@ -26,19 +25,15 @@ app.use(createRequestLimiter("1s", 20));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(queryParser({
-  parseNull: true,
-  parseUndefined: true,
-  parseBoolean: true,
-  parseNumber: true
-}));
 
 // API Роутинг
 import userRoutes from "./routes/userRoutes";
 import productsRoutes from "./routes/productsRoutes";
+import orderRoutes from "./routes/orderRoutes";
 
 app.use("/api/user", userRoutes);
 app.use("/api/products", productsRoutes);
+app.use("/api/order", orderRoutes);
 
 app.use(errorHandler({ log: true, rootProperty: false }));
 

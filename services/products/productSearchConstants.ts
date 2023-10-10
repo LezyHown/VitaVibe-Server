@@ -13,4 +13,4 @@ export const SEARCH_COLORS = [
   "white",
   "yellow",
 ];
-export const MAX_SEARCH_RESULTS = 15;
+export const MAX_SEARCH_RESULTS = 16;

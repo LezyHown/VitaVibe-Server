@@ -9,7 +9,7 @@ import recoveryMiddleware from "../middlewares/recoveryMiddleware";
 const userRoutes = Router();
 
 /** АВТОРИЗАЦИЯ */
-userRoutes.post("/register", userController.registration);
+userRoutes.post("/register", createRequestLimiter("1m", 1), userController.registration);
 userRoutes.post("/login", userController.login);
 userRoutes.post("/logout", userController.logout);
 userRoutes.post("/send/otp", tokenMiddleware("ACCESS_TOKEN"), userController.sendOtp);
@@ -37,5 +37,6 @@ userRoutes.post("/update/profile", tokenMiddleware("ACCESS_TOKEN"), userControll
 userRoutes.patch("/address", tokenMiddleware("ACCESS_TOKEN"), userController.updateAddress);
 userRoutes.delete("/address", tokenMiddleware("ACCESS_TOKEN"), userController.removeAddress);
 userRoutes.patch("/invoice", tokenMiddleware("ACCESS_TOKEN"), userController.updateInvoiceData);
+userRoutes.get("/orders", tokenMiddleware("ACCESS_TOKEN", false, true), userController.getOrders);
 
 export default userRoutes;

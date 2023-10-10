@@ -5,8 +5,9 @@ type UserGender = "male" | "female" | "other";
 
 export interface IUserPayload {
   _id: string;
-  addressList: { list: UserAddress, selected: number };
+  addressList: { list: UserAddress[], selected: number };
   invoiceAddress: InvoiceAddress;
+  orders: any[];
   personalInfo: {
     firstName: string;
     lastName: string;
@@ -23,7 +24,7 @@ export interface IUserPayload {
 
 export type UserProfileData = IUserPayload["personalInfo"] & {
   changePassword?: {
-    current?: string;
+    currentPassword?: string;
     newPassword?: string;
     repeatPassword?: string;
   }
@@ -45,6 +46,7 @@ export default class UserDto {
       "personalInfo.gender",
       "activation.isActivated",
       "accessToken",
+      "orders"
     ]) as IUserPayload;
   }
 

@@ -21,9 +21,9 @@ import {
 } from "./userValidation";
 
 import UserDto, { IUserPayload, UserProfileData } from "../../dtos/userDto";
-import tokenService from "../../services/tokenService";
-import mailService from "../../services/mailService";
-import userService from "../../services/userService";
+import tokenService from "../../services/user/tokenService";
+import mailService from "../../services/mail/mailService";
+import userService from "../../services/user/userService";
 import userModel, { InvoiceAddress, InvoiceDeliveryEnum, UserAddress } from "../../mongodb/models/userModel";
 import Joi from "joi";
 
@@ -37,7 +37,7 @@ class UserController {
       );
 
       const user = await userService.createNewAccount({ email, password, firstName, lastName }, subscribe);
-      const userDto = new UserDto(user.toObject());
+      const userDto = new UserDto(user);
       const payload = userDto.getPayload();
       const tokenSet = tokenService.generateTokenSet(res, payload);
 
@@ -310,6 +310,18 @@ class UserController {
       else {
         throw createHttpError(500, "account is missing");
       }
+    } catch (err) {
+      next(err);
+    } finally {
+      next();
+    }
+  }
+
+  async getOrders(req: TypedRequestBody<{ payload: IUserPayload }>, res: Response, next: NextFunction){
+    try {
+      const user = await userModel.findById(req.body.payload._id, { orders: 1 }).populate("orders");
+      
+      res.status(200).send({ message: "success", orders: user?.orders });
     } catch (err) {
       next(err);
     } finally {

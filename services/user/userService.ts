@@ -1,18 +1,18 @@
 import { Response } from "express";
 import speakeasy from "speakeasy";
 import { compare, hash } from "bcrypt";
-import { createHttpError } from "./httpErrorService";
+import { createHttpError } from "../httpErrorService";
 import axios, { HttpStatusCode } from "axios";
 import "dotenv/config";
 
-import userModel from "../mongodb/models/userModel";
-import newsSubscriber from "../mongodb/models/newsSubscriberModel";
-import UserDto, { IUserPayload, UserProfileData } from "../dtos/userDto";
+import userModel from "../../mongodb/models/userModel";
+import newsSubscriber from "../../mongodb/models/newsSubscriberModel";
+import UserDto, { IUserPayload, UserProfileData } from "../../dtos/userDto";
 import tokenService from "./tokenService";
-import mailService from "./mailService";
+import mailService from "../mail/mailService";
 
-import { maskEmail } from "./tools/maskData";
-import { HttpStatus, SendOtpResult } from "./tools/httpStatus";
+import { maskEmail } from "../tools/maskData";
+import { HttpStatus, SendOtpResult } from "../tools/httpStatus";
 
 interface ICredentials {
   firstName: string;
@@ -58,10 +58,7 @@ class UserService {
     return user;
   }
 
-  public async login(
-    credentials: Omit<ICredentials, "firstName" | "lastName">,
-    res: Response
-  ): Promise<IUserPayload> {
+  public async login(credentials: Omit<ICredentials, "firstName" | "lastName">, res: Response) {
     const user = await userModel.findOne({ "personalInfo.email": credentials.email });
     const isSuccessLogin = await compare(credentials.password, String(user?.personalInfo.password));
 
@@ -78,7 +75,7 @@ class UserService {
     return userDto.getPayload();
   }
 
-  public async logout(refreshToken: string, res: Response): Promise<IUserPayload> {
+  public async logout(refreshToken: string, res: Response) {
     const payload = tokenService.validateToken(refreshToken, "JWT_REFRESH_SECRET");
 
     if (!payload) {
@@ -90,7 +87,7 @@ class UserService {
     return payload;
   }
 
-  public async sendOtp(payload: IUserPayload): Promise<SendOtpResult> {
+  public async sendOtp(payload: IUserPayload) {
     const user = await userModel.findById(payload._id);
 
     if (!user) {
@@ -125,7 +122,7 @@ class UserService {
     }
   }
 
-  public async activate(payload: IUserPayload, otp: string): Promise<HttpStatus> {
+  public async activate(payload: IUserPayload, otp: string) {
     const user = await userModel.findOne({ "personalInfo.email": payload?.personalInfo.email });
     const maskedEmail = maskEmail(payload?.personalInfo.email);
 
@@ -176,16 +173,20 @@ class UserService {
     };
   }
 
-  public async refresh(payload: IUserPayload, refreshToken: string, res: Response): Promise<IUserPayload> {
-    const actualUser = (await userModel.findById(payload._id))?.toObject() as object;
-    const user = new UserDto(actualUser);
-    await tokenService.removeRefreshToken(refreshToken, res);
+  public async refresh(payload: IUserPayload, refreshToken: string, res: Response) {
+    const actualUser = await userModel.findById(payload._id);
+    if (actualUser) {
+      const user = new UserDto(actualUser.toObject());
+      await tokenService.removeRefreshToken(refreshToken, res);
 
-    const tokens = tokenService.generateTokenSet(res, payload);
-    await tokenService.saveToken(payload._id, tokens.refresh);
-    user.setAccessToken(tokens.access);
+      const tokens = tokenService.generateTokenSet(res, user.getPayload());
+      await tokenService.saveToken(payload._id, tokens.refresh);
+      user.setAccessToken(tokens.access);
 
-    return user.getPayload();
+      return user.getPayload();
+    } else {
+      throw createHttpError(500, "Something wrong");
+    }
   }
 
   public async actualPayload(oldPayload: IUserPayload): Promise<IUserPayload> {
@@ -194,9 +195,10 @@ class UserService {
     if (!user) {
       throw createHttpError(500);
     }
-    const userDto = new UserDto(user.toObject());
+    const userDto = new UserDto(user);
+    // Токен доступа без изменений
     userDto.setAccessToken(oldPayload.accessToken ?? "");
-
+    // Новый payload 
     return userDto.getPayload();
   }
 
@@ -239,11 +241,7 @@ class UserService {
     return userDto.getPayload();
   }
 
-  public async updateProfile(
-    payload: IUserPayload,
-    profile: UserProfileData,
-    isChangePassword: boolean
-  ): Promise<IUserPayload> {
+  public async updateProfile(payload: IUserPayload, profile: UserProfileData, isChangePassword: boolean) {
     const user = await userModel.findById(payload._id);
 
     if (user) {
@@ -258,7 +256,7 @@ class UserService {
           .post(
             process.env.API_URL + "/api/user/reset/password",
             {
-              prevPassword: profile.changePassword?.current,
+              prevPassword: profile.changePassword?.currentPassword,
               password: profile.changePassword?.newPassword,
             },
             {
@@ -272,7 +270,7 @@ class UserService {
 
         return newPayload;
       } else {
-        const userDto = new UserDto(user.toObject());
+        const userDto = new UserDto(user);
         userDto.setAccessToken(payload.accessToken as string);
 
         return userDto.getPayload();

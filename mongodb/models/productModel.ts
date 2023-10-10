@@ -37,8 +37,7 @@ const ProductVariant = new Schema({
   sizes: [SizeVariants] || [],
   color: String,
   details: [String] || [],
-  gender: { type: String, enum: ["male", "female"], default: null },
-  clicks: { type: Number, default: 0 },
+  gender: { type: String, enum: ["male", "female", null], default: null },
   available: { type: availableProductSchema, required: true },
 });
 
@@ -50,11 +49,11 @@ const Product = new Schema(
 );
 
 ProductVariant.index({
+  price: 1,
   name: 1,
   subTitle: 1,
   color: 1,
-  gender: 1,
-  price: 1
+  gender: 1
 });
 
 export default model("Product", Product);

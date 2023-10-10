@@ -1,13 +1,15 @@
+import { UserAddress } from "./../../mongodb/models/userModel";
 import axios from "axios";
 import path from "path";
 import fs from "fs";
 import "dotenv/config";
 
 import nodemailer, { Transporter, SendMailOptions, TransportOptions } from "nodemailer";
-import { encryptParams } from "../middlewares/cryptoParamsMiddleware";
+import { encryptParams } from "../../middlewares/cryptoParamsMiddleware";
 import ejs from "ejs";
 import qs from "qs";
-import { IUserPayload } from "../dtos/userDto";
+import { IUserPayload } from "../../dtos/userDto";
+import { Cart } from "../../сontrollers/order/types";
 const { CLIENT_URL, API_URL, BRAND, SMTP_EMAIL, SMTP_HOST, SMTP_PASSWORD, AUTO_SENDMAIL_DELAY } = process.env;
 
 class MailService {
@@ -42,8 +44,8 @@ class MailService {
       try {
         const res = await axios.post(API_URL + "/api/user/send/otp", null, {
           headers: {
-            Authorization: "Bearer " + accessToken
-          }
+            Authorization: "Bearer " + accessToken,
+          },
         });
         console.log("[axios MailService]: " + res.data);
       } catch (err) {
@@ -53,7 +55,7 @@ class MailService {
   }
 
   public getHtmlTemplate(templateName: string, params: object) {
-    const templatePath = path.join(__dirname, `./mailTemplates/${templateName}.ejs`);
+    const templatePath = path.join(__dirname, `./templates/${templateName}.ejs`);
     const template = fs.readFileSync(templatePath, "utf-8");
 
     return ejs.render(template, { ...params, website: CLIENT_URL, brand: BRAND });
@@ -102,6 +104,38 @@ class MailService {
       this.getHtmlTemplate("recovery", { link }),
       "recovery link"
     );
+  }
+
+  public sendOrderDetails(
+    payload: IUserPayload,
+    orderDetails: {
+      orderNum: number;
+      deliveryAddress: UserAddress;
+      deliveryType?: string;
+      orderDate: Date;
+    },
+    paymentDetails: {
+      paymentVariants: Cart["products"];
+      totalPrice: number;
+      currency: string;
+      totalCount: number;
+    }
+  ) {
+    const template = {
+      title: "Order (замовлення) № " + orderDetails.orderNum,
+      content: this.getHtmlTemplate("order-details", {
+        ...paymentDetails,
+        ...orderDetails,
+      }),
+    };
+    // Send about order to own server and the client
+    this.sendMail(
+      payload.personalInfo.email,
+      template.title,
+      template.content,
+      `Інформація про замовлення №${orderDetails.orderNum} була успішно відправлена користувачу та серверу`
+    );
+    this.sendMail(String(SMTP_EMAIL), template.title, template.content);
   }
 }
 

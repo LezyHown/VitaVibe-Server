@@ -1,7 +1,7 @@
 import Joi from "joi";
 
-import validationService from "./validationService";
-import productModel from "../mongodb/models/productModel";
+import validationService from "../validationService";
+import productModel from "../../mongodb/models/productModel";
 
 import { MAX_SEARCH_RESULTS, SEARCH_COLORS } from "./productSearchConstants";
 import _ from "lodash";
@@ -24,11 +24,12 @@ class ProductService {
     skip?: string,
     gender?: string,
     colors?: string[],
+    sizes?: string,
     minPrice?: string,
     maxPrice?: string,
     discount?: string,
     sortByPrice?: "asc" | "desc",
-    exactMode: boolean = false
+    exactMode?: boolean
   ) {
     // ================================
     // Инициализация параметров поиска
@@ -38,11 +39,18 @@ class ProductService {
       ? { $or: [{ "variants.name": regexQuery }, { "variants.subTitle": regexQuery }] }
       : { $text: { $search: q, $caseSensitive: false } };
 
-    const searchByIndexes = !exactMode ? ({ score: { $meta: "textScore" } } as object) : {};
+    const searchByIndexes = !exactMode && !sortByPrice ? ({ score: { $meta: "textScore" } } as object) : {};
     const searchByColor = colors &&
       colors.length > 0 && { "variants.color": new RegExp(`${colors.join("|")}`, "i") };
     const searchByDiscount = discount && { "variants.oldPrice": { $exists: true } };
-
+    const filterBySizes = sizes && {
+      $and: [
+        {
+          "variants.sizes.size": { $regex: new RegExp(sizes.replace(/,/g, "|")) },
+          "variants.sizes.count": { $gte: 1 },
+        },
+      ],
+    };
     const applyPriceSort = sortByPrice && ({ "variants.price": sortByPrice === "asc" ? 1 : -1 } as object);
 
     // =====================================================
@@ -52,8 +60,10 @@ class ProductService {
       ...searchByQuery,
       ...searchByDiscount,
       ...searchByColor,
+      ...filterBySizes,
       "variants.price": { $gte: minPrice ?? 0, $lte: maxPrice ?? Number.MAX_VALUE },
-      "variants.gender": gender === "all" ? { $in: ["male", "female", null] } : gender,
+      "variants.gender":
+        gender === "all" ? { $in: ["male", "female", null] } : gender === "null" ? null : gender,
     } as any;
 
     // ==========================================================================
@@ -80,9 +90,10 @@ class ProductService {
         "variants.price": 1,
         "variants.oldPrice": 1,
         "variants.images": { $slice: 2 },
+        "variants._id": 1,
       })
       .sort({
-        "variants.clicks": -1,
+        "variants.orders": -1,
         ...searchByIndexes,
         ...applyPriceSort,
       })
@@ -100,27 +111,56 @@ class ProductService {
       products = filterProductVariants(
         products,
         "price",
-        (price) => price >= Number(minPrice ?? 0) && price <= Number(maxPrice ?? 10000000)
+        (price) => price >= Number(minPrice ?? 0) && price <= Number(maxPrice ?? Number.MAX_VALUE)
       );
     if (discount) products = filterProductVariants(products, "oldPrice", (oldPrice) => Boolean(oldPrice));
 
     // ==============================
     // Достаём все доступные размеры
     // ==============================
-    const allSizes = _.uniq(
-      _.chain(products)
-        .flatMap(({ variants }) => _.flatMap(variants, ({ sizes }) => sizes))
-        .groupBy("size")
-        .mapValues((sizes) => _.sumBy(sizes, "count"))
-        .pickBy((count) => count !== 0)
-        .keys()
-        .value()
-    );
+    const aggregateSizes =
+      (
+        await productModel
+          .aggregate([
+            { $match: query }, // Фильтрация продуктов
+            {
+              $unwind: "$variants", // Разгружаем массив variants
+            },
+            {
+              $unwind: "$variants.sizes", // Разгружаем массив sizes
+            },
+            {
+              $group: {
+                _id: {
+                  size: "$variants.sizes.size",
+                },
+                totalCount: {
+                  $sum: "$variants.sizes.count", // Сумма для каждого размера
+                },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                allSizes: {
+                  $push: {
+                    size: "$_id.size",
+                    count: "$totalCount",
+                  },
+                },
+              },
+            },
+          ])
+          .exec()
+      )[0]?.allSizes.map((_size: { size: string, count: number }) => ({
+        ..._size,
+        size: _size.size.replace(/\(.*\)/, "").trim(),
+      })) ?? [];
 
     return {
       totalCount,
       length: products.length,
-      allSizes,
+      allSizes: _.chain(aggregateSizes).uniqBy("size").sortBy("size").value(),
       products: products.filter(
         ({ variants }) => variants.length > 0 && variants.every(({ images }) => images.length > 0)
       ),

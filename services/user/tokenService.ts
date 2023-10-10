@@ -4,9 +4,9 @@ import jwt from "jsonwebtoken";
 import ms from "ms";
 import "dotenv/config";
 
-import UserDto, { IUserPayload } from "../dtos/userDto";
-import tokenModel, { ACCESS_EXPIRY_TIME, REFRESH_EXPIRY_TIME } from "../mongodb/models/tokenModel";
-import { createHttpError } from "./httpErrorService";
+import UserDto, { IUserPayload } from "../../dtos/userDto";
+import tokenModel, { ACCESS_EXPIRY_TIME, REFRESH_EXPIRY_TIME } from "../../mongodb/models/tokenModel";
+import { createHttpError } from "../httpErrorService";
 import { HttpStatusCode } from "axios";
 
 type TokenType = "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"; 
