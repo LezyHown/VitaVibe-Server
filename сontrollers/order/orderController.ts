@@ -22,7 +22,8 @@ class OrderController {
   ) {
     try {
       const { cart, paymentData, payload } = req.body;
-      const { token } = paymentData.paymentMethodData.tokenizationData;
+
+      const token = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
       const paymentDetails = await orderService.getPaymentDetails(cart);
 
       if (payload.addressList.list.length === 0 || !payload.invoiceAddress) {
@@ -53,7 +54,7 @@ class OrderController {
         );
 
         // Исчезновение товаров Отключено
-        // await orderService.modifyModelsByCartQuantity(cart.products);
+        // await orderService.decreaseProductsByCartQuantity(cart.products);
 
         const order = await orderService.createOrderModel(
           payload,
@@ -67,7 +68,6 @@ class OrderController {
           user.orders.push(order.id);
           await user.save();
 
-          const userDto = new UserDto(user);
           const orderNum = await orderModel.countDocuments();
           const orderDetails = { ...pick(order, "deliveryAddress", "deliveryType", "orderDate"), orderNum };
 
@@ -75,8 +75,7 @@ class OrderController {
 
           res.status(200).send({
             message: paymentCharge.status,
-            details: pick(paymentDetails, ["currency", "totalCount", "totalPrice"]),
-            payload: userDto.getPayload(),
+            details: pick(paymentDetails, ["currency", "totalCount", "totalPrice"])
           });
         }
       } catch (e) {

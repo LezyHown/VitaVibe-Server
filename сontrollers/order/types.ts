@@ -32,4 +32,4 @@ export type MismatchedVariant = {
   quantity: number
 }
 
-export type PaymentData = { paymentMethodData: { tokenizationData: { token: { id: string } } } };
+export type PaymentData = { paymentMethodData: { tokenizationData: { token: string } } };

@@ -45,7 +45,7 @@ export const userAddressListSchema = joi.object({
   street: joi.string().min(1).required(),
   city: joi.string().min(1).required(),
   homeNumber: joi.string().min(1).required(),
-  postCode: joi.string().length(5).required(),
+  postCode: joi.string().pattern(/\d{5}/).required().label("Only numbers. Required length is 5"),
   additionalInfo: joi.string().allow("").optional(),
 });
 export const userInvoiceSchema = joi.object({

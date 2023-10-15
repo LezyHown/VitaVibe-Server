@@ -38,17 +38,16 @@ class TokenService {
   }
 
   public async removeRefreshToken(refresh: string, res: Response){
-    const removeCookieToken = () => res.clearCookie(REFRESH_COOKIENAME);
     const refreshToken = await tokenModel.findOne({ "refreshToken": refresh }); 
     
     if (!refreshToken) {
-      removeCookieToken();
+      res.clearCookie(REFRESH_COOKIENAME);
       throw createHttpError(HttpStatusCode.Unauthorized, "Need sign-in again");
     }
     
     // Убираем токен из token коллекции
     await refreshToken.deleteOne();
-    removeCookieToken();
+    res.clearCookie(REFRESH_COOKIENAME);
   }
 
   public validateToken(token: string, type: TokenType): IUserPayload | null {

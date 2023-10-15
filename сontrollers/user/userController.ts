@@ -257,7 +257,7 @@ class UserController {
         user.addressList.selected = select;
         await user.save();
 
-        res.status(200).send({ addressList: user.addressList.list });
+        res.status(200).send(user.addressList.list);
       } else {
         throw createHttpError(500, "account is missing");
       }
@@ -283,7 +283,7 @@ class UserController {
         user.addressList.list.splice(select, 1);
         await user.save();
 
-        res.status(200).send({ addressList: user.addressList.list });
+        res.status(200).send(user.addressList.list);
       } else {
         throw createHttpError(500, "account is missing");
       }
@@ -305,7 +305,7 @@ class UserController {
       if (user) {
         user.invoiceAddress = invoiceAddress;
         await user.save();
-        res.status(200).send({ success: true, invoiceAddress });
+        res.status(200).send(invoiceAddress);
       } 
       else {
         throw createHttpError(500, "account is missing");
@@ -321,7 +321,7 @@ class UserController {
     try {
       const user = await userModel.findById(req.body.payload._id, { orders: 1 }).populate("orders");
       
-      res.status(200).send({ message: "success", orders: user?.orders });
+      res.status(200).send(user?.orders);
     } catch (err) {
       next(err);
     } finally {

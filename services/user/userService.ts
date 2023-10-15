@@ -176,7 +176,7 @@ class UserService {
   public async refresh(payload: IUserPayload, refreshToken: string, res: Response) {
     const actualUser = await userModel.findById(payload._id);
     if (actualUser) {
-      const user = new UserDto(actualUser.toObject());
+      const user = new UserDto(actualUser);
       await tokenService.removeRefreshToken(refreshToken, res);
 
       const tokens = tokenService.generateTokenSet(res, user.getPayload());

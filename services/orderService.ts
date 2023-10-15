@@ -66,7 +66,7 @@ class OrderService {
     };
   }
 
-  async modifyModelsByCartQuantity(products: Cart["products"]) {
+  async decreaseProductsByCartQuantity(products: Cart["products"]) {
     const cartVariantKeys = Object.keys(products);
     const productsIds = cartVariantKeys.map(
       (variantId) => new Types.ObjectId(products[variantId].productRefId)

@@ -38,6 +38,7 @@ export default class UserDto {
       "_id",
       "addressList",
       "invoiceAddress",
+      "orders",
       "personalInfo.email",
       "personalInfo.firstName",
       "personalInfo.lastName",
@@ -46,7 +47,6 @@ export default class UserDto {
       "personalInfo.gender",
       "activation.isActivated",
       "accessToken",
-      "orders"
     ]) as IUserPayload;
   }
 
