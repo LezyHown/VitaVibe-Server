@@ -60,7 +60,7 @@ class OrderService {
       totalCount,
       totalPrice: Number(totalPrice.toFixed(2)),
       currency: productModels[0].variants[0].currency.toLowerCase(),
-      mismatchedVariants: mismatchedVariants.length > 0 && mismatchedVariants,
+      mismatchedVariants,
       paymentVariants,
       invalid: totalPrice === 0 || mismatchedVariants.length > 0,
     };
@@ -88,9 +88,9 @@ class OrderService {
             await model.save();
 
             console.log(
-              `Product variant ${variantModel.id} was modified. Field: ${size} from: ${
+              `Product variant ${variantModel.id} was modified. Size modified: ${size} from: ${
                 variantModel.sizes[sizeIndex].count + decreaseQuantity
-              } to: ${variantModel.sizes[sizeIndex].count}`
+              } to => ${variantModel.sizes[sizeIndex].count}`
             );
           }
         }

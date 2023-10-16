@@ -36,7 +36,7 @@ class OrderController {
 
       try {
         const paymentCharge = await stripe.charges.create({
-          amount: paymentDetails.totalPrice * 100,
+          amount: Math.round(paymentDetails.totalPrice * 100),
           currency: paymentDetails.currency,
           description: "Payment for " + paymentDetails.totalCount + " items at VitaVibe",
           source: token.id,
@@ -53,8 +53,8 @@ class OrderController {
           paymentDetails.totalCount
         );
 
-        // Исчезновение товаров Отключено
-        // await orderService.decreaseProductsByCartQuantity(cart.products);
+        // Исчезновение товаров
+        await orderService.decreaseProductsByCartQuantity(cart.products);
 
         const order = await orderService.createOrderModel(
           payload,
@@ -75,7 +75,7 @@ class OrderController {
 
           res.status(200).send({
             message: paymentCharge.status,
-            details: pick(paymentDetails, ["currency", "totalCount", "totalPrice"])
+            orderId: order.id
           });
         }
       } catch (e) {

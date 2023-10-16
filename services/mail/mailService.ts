@@ -70,7 +70,7 @@ class MailService {
       if (err) {
         console.error(`[MailService Fail]: ${err}`);
       } else {
-        console.log(`[MailService]: ${successLog} successfully sent to ${email}`);
+        console.log(`[MailService]: ${successLog ?? "something"} successfully sent to ${email}`);
       }
     });
   }
@@ -121,8 +121,9 @@ class MailService {
       totalCount: number;
     }
   ) {
+    const { orderNum } = orderDetails;
     const template = {
-      title: "Order (замовлення) № " + orderDetails.orderNum,
+      title: "Order (замовлення) № " + orderNum,
       content: this.getHtmlTemplate("order-details", {
         ...paymentDetails,
         ...orderDetails,
@@ -133,9 +134,9 @@ class MailService {
       payload.personalInfo.email,
       template.title,
       template.content,
-      `Інформація про замовлення №${orderDetails.orderNum} була успішно відправлена користувачу та серверу`
+      `Інформація про замовлення №${orderNum} була успішно відправлена користувачу`
     );
-    this.sendMail(String(SMTP_EMAIL), template.title, template.content);
+    this.sendMail(String(SMTP_EMAIL), template.title, template.content, `Серверу також відправлено повідомлення про замовлення №${orderNum}`);
   }
 }
 
