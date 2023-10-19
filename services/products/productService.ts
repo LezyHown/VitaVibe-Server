@@ -3,167 +3,119 @@ import Joi from "joi";
 import validationService from "../validationService";
 import productModel from "../../mongodb/models/productModel";
 
-import { MAX_SEARCH_RESULTS, SEARCH_COLORS } from "./productSearchConstants";
+import { MAX_SEARCH_RESULTS } from "./productSearchConstants";
+import { filterProductVariants } from "./utils";
+import { ProductQuery, SearchQuery } from "./types";
 import _ from "lodash";
 
-function filterProductVariants(products: any[], field: string, condition: (value: any) => boolean) {
-  return products.map((product) => {
-    const cleanProductVariants = product.variants.filter((variant: any) => condition(variant[field]));
-    return _.set(product, "variants", cleanProductVariants);
-  });
-}
-
-export function searchColors(input: string): string[] | null {
-  const regexColors = new RegExp(`(\\b${SEARCH_COLORS.join("\\b|\\b")}\\b)`, "gi");
-  return input.match(regexColors);
-}
-
 class ProductService {
-  async search(
-    q: string,
-    skip?: string,
-    gender?: string,
-    colors?: string[],
-    sizes?: string,
-    minPrice?: string,
-    maxPrice?: string,
-    discount?: string,
-    sortByPrice?: "asc" | "desc",
-    exactMode?: boolean
-  ) {
-    // ================================
-    // Инициализация параметров поиска
-    // ================================
-    const regexQuery = new RegExp(`${q}`, "ig");
-    const searchByQuery = exactMode
+  buildProductQuery(query: ProductQuery) {
+    const regexQuery = new RegExp(`${query.q}`, "ig");
+    const searchByQuery = query.exactMode
       ? { $or: [{ "variants.name": regexQuery }, { "variants.subTitle": regexQuery }] }
-      : { $text: { $search: q, $caseSensitive: false } };
+      : { $text: { $search: query.q, $caseSensitive: false } };
 
-    const searchByIndexes = !exactMode && !sortByPrice ? ({ score: { $meta: "textScore" } } as object) : {};
-    const searchByColor = colors &&
-      colors.length > 0 && { "variants.color": new RegExp(`${colors.join("|")}`, "i") };
-    const searchByDiscount = discount && { "variants.oldPrice": { $exists: true } };
-    const filterBySizes = sizes && {
+    const searchByColor = query.colors &&
+      query.colors.length > 0 && { "variants.color": new RegExp(`${query.colors.join("|")}`, "i") };
+    const searchByDiscount = query.discount && { "variants.oldPrice": { $exists: true } };
+    const filterBySizes = query.sizes && {
       $and: [
         {
-          "variants.sizes.size": { $regex: new RegExp(sizes.replace(/,/g, "|")) },
+          "variants.sizes.size": { $regex: new RegExp(query.sizes.replace(/,/g, "|")) },
           "variants.sizes.count": { $gte: 1 },
         },
       ],
     };
-    const applyPriceSort = sortByPrice && ({ "variants.price": sortByPrice === "asc" ? 1 : -1 } as object);
 
-    // =====================================================
-    // Фомирование поискового запроса для модели продуктов
-    // =====================================================
-    const query = {
+    return {
       ...searchByQuery,
       ...searchByDiscount,
       ...searchByColor,
       ...filterBySizes,
-      "variants.price": { $gte: minPrice ?? 0, $lte: maxPrice ?? Number.MAX_VALUE },
+      "variants.images": { $ne: [] },
+      "variants.price": { $gte: query.minPrice ?? 0, $lte: query.maxPrice ?? Number.MAX_VALUE },
       "variants.gender":
-        gender === "all" ? { $in: ["male", "female", null] } : gender === "null" ? null : gender,
-    } as any;
+        query.gender === "all"
+          ? { $in: ["male", "female", null] }
+          : query.gender === "null"
+          ? null
+          : query.gender,
+    };
+  }
+  filterByColors(products: any[], colors: string[]) {
+    return filterProductVariants(products, "color", (color) =>
+      new RegExp(`${colors?.join("|")}`, "i").test(color)
+    );
+  }
+  filterByPrice(products: any[], minPrice?: string, maxPrice?: string) {
+    return filterProductVariants(
+      products,
+      "price",
+      (price) => price >= Number(minPrice ?? 0) && price <= Number(maxPrice ?? Number.MAX_VALUE)
+    );
+  }
+  filterByDiscount(products: any[]) {
+    return filterProductVariants(products, "oldPrice", (oldPrice) => Boolean(oldPrice));
+  }
+  async getAvailableSizes(query: object) {
+    const sizes = await productModel.distinct("variants.sizes.size", query).exec();
+    const uniqueSizes = [...new Set(sizes?.map((size) => size.replace(/\(.*\)/, "").trim()))];
+    return uniqueSizes ?? [];
+  }
+  async fetchProducts(query: object, searchByIndexes: object, applyPriceSort?: object, skip?: string) {
+    const select = {
+      "variants.available": 1,
+      "variants.color": 1,
+      "variants.currency": 1,
+      "variants.name": 1,
+      "variants.subTitle": 1,
+      "variants.sizes": 1,
+      "variants.price": 1,
+      "variants.oldPrice": 1,
+      "variants.images": { $slice: 2 },
+      "variants._id": 1,
+    };
+    const sort = {
+      "variants.orders": -1,
+      ...searchByIndexes,
+      ...applyPriceSort,
+    };
 
-    // ==========================================================================
-    // Подсчёт поиска возможных вариантов по запросу и применение параметра skip
-    // ==========================================================================
-    var totalCount = await productModel.countDocuments(query);
-    await validationService.validateField(skip, Joi.number().min(0).max(totalCount).optional(), "skip");
-    if (skip) {
-      totalCount -= Number(skip);
-    }
-
-    // ===========================================================
-    // Поиск, выборка полей, сортировка, применение доп. фильтров
-    // ===========================================================
-    var products = await productModel
+    return await productModel
       .find(query, searchByIndexes)
-      .select({
-        "variants.available": 1,
-        "variants.color": 1,
-        "variants.currency": 1,
-        "variants.name": 1,
-        "variants.subTitle": 1,
-        "variants.sizes": 1,
-        "variants.price": 1,
-        "variants.oldPrice": 1,
-        "variants.images": { $slice: 2 },
-        "variants._id": 1,
-      })
-      .sort({
-        "variants.orders": -1,
-        ...searchByIndexes,
-        ...applyPriceSort,
-      })
+      .select(select)
+      .sort(sort as any)
       .skip(Number(skip ?? 0))
       .limit(MAX_SEARCH_RESULTS);
+  }
+  async getTotalCount(query: object, skip?: string) {
+    const countProducts = await productModel.countDocuments(query);
+    await validationService.validateField(skip, Joi.number().min(0).max(countProducts).optional(), "skip");
+    return countProducts - Number(skip ?? 0);
+  }
+  async search(squery: SearchQuery) {
+    const { sortByPrice, exactMode, colors, skip, minPrice, maxPrice, discount } = squery;
 
-    // =======================
-    // Фильтрация вариантов
-    // =======================
-    if (colors)
-      products = filterProductVariants(products, "color", (color) =>
-        new RegExp(`${colors?.join("|")}`, "i").test(color)
-      );
-    if (minPrice || maxPrice)
-      products = filterProductVariants(
-        products,
-        "price",
-        (price) => price >= Number(minPrice ?? 0) && price <= Number(maxPrice ?? Number.MAX_VALUE)
-      );
-    if (discount) products = filterProductVariants(products, "oldPrice", (oldPrice) => Boolean(oldPrice));
+    const query = this.buildProductQuery(squery);
+    const applyPriceSort = sortByPrice && { "variants.price": sortByPrice === "asc" ? 1 : -1 };
+    const searchByIndexes = !exactMode && !sortByPrice ? { score: { $meta: "textScore" } } : {};
 
-    // ==============================
-    // Достаём все доступные размеры
-    // ==============================
-    const aggregateSizes =
-      (
-        await productModel
-          .aggregate([
-            { $match: query }, // Фильтрация продуктов
-            {
-              $unwind: "$variants", // Разгружаем массив variants
-            },
-            {
-              $unwind: "$variants.sizes", // Разгружаем массив sizes
-            },
-            {
-              $group: {
-                _id: {
-                  size: "$variants.sizes.size",
-                },
-                totalCount: {
-                  $sum: "$variants.sizes.count", // Сумма для каждого размера
-                },
-              },
-            },
-            {
-              $group: {
-                _id: null,
-                allSizes: {
-                  $push: {
-                    size: "$_id.size",
-                    count: "$totalCount",
-                  },
-                },
-              },
-            },
-          ])
-          .exec()
-      )[0]?.allSizes.map((_size: { size: string, count: number }) => ({
-        ..._size,
-        size: _size.size.replace(/\(.*\)/, "").trim(),
-      })) ?? [];
+    var products = await this.fetchProducts(query, searchByIndexes, applyPriceSort, skip);
+
+    if (colors) {
+      products = this.filterByColors(products, colors);
+    }
+    if (minPrice || maxPrice) {
+      products = this.filterByPrice(products, minPrice, maxPrice);
+    }
+    if (discount) {
+      products = this.filterByDiscount(products);
+    }
 
     return {
-      totalCount,
+      totalCount: await this.getTotalCount(query, skip),
       length: products.length,
-      allSizes: _.chain(aggregateSizes).uniqBy("size").sortBy("size").value(),
-      products: products.filter(
-        ({ variants }) => variants.length > 0 && variants.every(({ images }) => images.length > 0)
-      ),
+      products: products.filter(({ variants }) => variants.length > 0),
     };
   }
   async getProduct(id: string) {

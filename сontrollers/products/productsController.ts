@@ -1,15 +1,57 @@
 import { NextFunction, Request, Response } from "express";
+import { isValidObjectId } from "mongoose";
 
 import _ from "lodash";
 import validationService from "../../services/validationService";
 import { createHttpError } from "../../services/httpErrorService";
 
-import { isValidObjectId } from "mongoose";
+import productService from "../../services/products/productService";
+import { SearchQuery } from "../../services/products/types";
+import { searchColors } from "../../services/products/utils";
 import { SEARCH_COLORS } from "../../services/products/productSearchConstants";
-import productService, { searchColors } from "../../services/products/productService";
 import { productGenderSchema, productQuerySchema, sortBySchema } from "./productsValidation";
 
 class ProductsController {
+  async prepareSearchQuery(req: Request) {
+    const {
+      q,
+      skip,
+      minPrice,
+      maxPrice,
+      discount,
+      sizes,
+      sortByPrice,
+      exactMode = "false",
+      gender = "all",
+    } = req.query as any;
+    let { colors } = req.query as any;
+
+    colors = (colors && searchColors(colors + " " + q)) ?? searchColors(q) ?? undefined;
+
+    if (colors === null) {
+      throw createHttpError(400, {
+        errors: { field: "colors", value: "Choose available colors" },
+        available: SEARCH_COLORS,
+      });
+    }
+
+    await validationService.validateField(sortByPrice, sortBySchema, "sortByPrice");
+    await validationService.validateField(q, productQuerySchema, "q");
+    await validationService.validateField(gender, productGenderSchema, "gender");
+
+    return {
+      q,
+      skip,
+      gender,
+      colors,
+      sizes,
+      minPrice,
+      maxPrice,
+      discount,
+      sortByPrice,
+      exactMode: exactMode === "true",
+    } as SearchQuery;
+  }
   /**
    * Выполняет поиск продуктов в базе данных на основе заданных параметров.
    *
@@ -31,52 +73,23 @@ class ProductsController {
    */
   async search(req: Request, res: Response, next: NextFunction) {
     try {
-      const {
-        q,
-        skip,
-        minPrice,
-        maxPrice,
-        discount,
-        sizes,
-        sortByPrice,
-        gender = "all",
-      } = req.query as any;
-      var { colors, exactMode = "false" } = req.query as any;
-
-      // ====================================================
-      // Поиск цветов в запросе и настройка параметра colors
-      // ====================================================
-      colors = (colors && searchColors(colors + " " + q)) ?? searchColors(q) ?? undefined;
-      exactMode = exactMode === "true";
-      
-      // =============================
-      // Валидация параметров поиска
-      // =============================
-      if (colors === null) {
-        throw createHttpError(400, {
-          errors: { field: "colors", value: "Choose available colors" },
-          available: SEARCH_COLORS,
-        });
-      }
-
-      await validationService.validateField(sortByPrice, sortBySchema, "sortByPrice");
-      await validationService.validateField(q, productQuerySchema, "q");
-      await validationService.validateField(gender, productGenderSchema, "gender");
-
-      const searchResults = await productService.search(
-        q,
-        skip,
-        gender,
-        colors,
-        sizes,
-        minPrice,
-        maxPrice,
-        discount,
-        sortByPrice,
-        exactMode
-      );
+      const query = await this.prepareSearchQuery(req);
+      const searchResults = await productService.search(query);
 
       res.status(200).send(searchResults);
+    } catch (err) {
+      next(err);
+    } finally {
+      next();
+    }
+  }
+  async getAvailableSizes(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query = await this.prepareSearchQuery(req);
+      const productQuery = productService.buildProductQuery(query);
+      const sizes = await productService.getAvailableSizes(productQuery);
+
+      res.status(200).send(sizes);
     } catch (err) {
       next(err);
     } finally {
