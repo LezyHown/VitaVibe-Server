@@ -1,14 +1,17 @@
 import { IUserPayload } from "./../dtos/userDto";
 import { assign, omit, pick } from "lodash";
 import { Types } from "mongoose";
-import { Cart, CartVariantModel, MismatchedVariant } from "../сontrollers/order/types";
+import { Cart, MismatchedVariant } from "../сontrollers/order/types";
 import productModel from "../mongodb/models/productModel";
 import orderModel from "../mongodb/models/orderModel";
+import { createHttpError } from "./httpErrorService";
+import promoService from "./promo/promoService";
 
 class OrderService {
   async getPaymentDetails(cart: Cart) {
-    const { products: cartProducts, deliveryType } = cart;
-
+    const { products: cartProducts, deliveryType, promocode } = cart;
+    const { percentDiscount } = await promoService.testPromoCode(promocode.code);
+    
     const cartVariantKeys = Object.keys(cartProducts);
     const productsIds = cartVariantKeys.map(
       (variantId) => new Types.ObjectId(cartProducts[variantId].productRefId)
@@ -35,11 +38,22 @@ class OrderService {
           }
 
           if (selectedQuantity < 1 || selectedQuantity > count) {
+            // Формуєм зайвий товар, який не може бути купленим (Невідповідний товар)
             mismatchedVariants.push({ variantId, size, quantity: selectedQuantity });
           } else {
-            totalPrice += selectedQuantity * variant.price;
+            // Ціна товара
+            let itemPrice = selectedQuantity * variant.price;
+            // Знижка на товар (промокод)
+            if (!variant.oldPrice && percentDiscount > 0) {
+              itemPrice -= (itemPrice / 100) * percentDiscount;
+            }
+
+            // Додаєм ціну до загальної суми
+            totalPrice += itemPrice;
+            // Загальна кількість товару
             totalCount += selectedQuantity;
 
+            // Будую кожний продукт кошика на основі актуальних даних (уникнаючи підміну даних)
             paymentVariants[variantId] = assign(cartProducts[variantId], {
               ...pick(variant, "color", "price", "oldPrice", "subTitle", "name", "currency"),
               image: variant.images[0].thumbnail,
@@ -52,9 +66,15 @@ class OrderService {
     const shipping = Number(
       deliveryType === "courier" ? process.env.SHIPPING_COURIER_USD : process.env.SHIPPING_POST_USD
     );
-    const shippingIncluded = totalPrice < Number(process.env.FREE_SHIPPING_THRESHOLD_USD);
 
-    totalPrice += shippingIncluded && totalPrice > 0 ? shipping : 0;
+    // ADD SHIPPING COST
+    if (totalPrice < Number(process.env.FREE_SHIPPING_THRESHOLD_USD) && totalPrice > 0) {
+      totalPrice += shipping;
+    }
+    // INVALID PAYMENT ERROR
+    if (totalPrice === 0 || mismatchedVariants.length > 0) {
+      throw createHttpError(400, { invalid: true, totalPrice, paymentVariants, mismatchedVariants });
+    }
 
     return {
       totalCount,
@@ -62,7 +82,6 @@ class OrderService {
       currency: productModels[0].variants[0].currency.toLowerCase(),
       mismatchedVariants,
       paymentVariants,
-      invalid: totalPrice === 0 || mismatchedVariants.length > 0,
     };
   }
 
@@ -77,6 +96,7 @@ class OrderService {
     for (const model of productModels) {
       for (const variantId of cartVariantKeys) {
         const variantModel = model.variants.find(({ id }) => id === variantId);
+        
         if (variantModel) {
           const sizeIndex = variantModel.sizes.findIndex(({ size }) => products[variantId].sizes[size]);
           const availableSize = sizeIndex !== -1;
@@ -84,8 +104,15 @@ class OrderService {
           if (availableSize) {
             const size = variantModel.sizes[sizeIndex].size;
             const decreaseQuantity = Number(products[variantId].sizes[size].quantity);
+
             variantModel.sizes[sizeIndex].count -= decreaseQuantity;
             await model.save();
+
+            if (variantModel.sizes.every(({ count }) => count === 0)) {
+              variantModel.available.available = false;
+              variantModel.available.details = "Товар розпродано.";
+              await model.save();
+            }
 
             console.log(
               `Product variant ${variantModel.id} was modified. Size modified: ${size} from: ${
@@ -122,7 +149,6 @@ class OrderService {
       deliveryType,
       paymentChargeId,
       products,
-      status: "completed",
     });
   }
 }

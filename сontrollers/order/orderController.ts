@@ -11,6 +11,7 @@ import UserDto, { IUserPayload } from "../../dtos/userDto";
 import userModel from "../../mongodb/models/userModel";
 import mailService from "../../services/mail/mailService";
 import orderModel from "../../mongodb/models/orderModel";
+import promoService from "../../services/promo/promoService";
 
 const stripe = new Stripe(String(process.env.STRIPE_SECRET), { apiVersion: "2023-08-16" });
 
@@ -23,16 +24,13 @@ class OrderController {
     try {
       const { cart, paymentData, payload } = req.body;
 
-      const token = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
-      const paymentDetails = await orderService.getPaymentDetails(cart);
-
+      // Відхилення замовлення, якщо користувач не має адреси
       if (payload.addressList.list.length === 0 || !payload.invoiceAddress) {
         throw createHttpError(400, "Please select an address");
       }
-      if (paymentDetails.invalid) {
-        const { totalPrice, invalid, mismatchedVariants, paymentVariants } = paymentDetails;
-        throw createHttpError(400, { invalid, totalPrice, paymentVariants, mismatchedVariants });
-      }
+
+      const token = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
+      const paymentDetails = await orderService.getPaymentDetails(cart);
 
       try {
         const paymentCharge = await stripe.charges.create({
@@ -53,8 +51,8 @@ class OrderController {
           paymentDetails.totalCount
         );
 
-        // Исчезновение товаров
         await orderService.decreaseProductsByCartQuantity(cart.products);
+        await promoService.usePromoCode(cart.promocode.code);
 
         const order = await orderService.createOrderModel(
           payload,
@@ -75,7 +73,7 @@ class OrderController {
 
           res.status(200).send({
             message: paymentCharge.status,
-            orderId: order.id
+            orderId: order.id,
           });
         }
       } catch (e) {

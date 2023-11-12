@@ -9,16 +9,15 @@ class ValidationService {
     try {
       await schema.validateAsync(fields, { abortEarly: false });
     } catch (err) {
-      const errors = (err as ValidationError).details?.map((error, index) => {
-        const field = customNames?.[index] ?? error.context?.key;
-        const value = error.context?.value || 'required';
-        // Ручная ошибка Joi .label("Text error...")
-        const validLabel = String(error.context?.label) !== "field";
-        const label = validLabel && error.context?.label;
-                
-        return { field, value, label, details: error.message };
-      }) || [];
-    
+      const errors =
+        (err as ValidationError).details?.map((error, index) => {
+          const field = customNames?.[index] ?? error.context?.key;
+          const value = error.context?.value || "required";
+          const customLabel = String(error.context?.label) !== "field";
+
+          return { field, value, label: customLabel && error.context?.label, details: error.message };
+        }) || [];
+
       throw createHttpError(400, { success: false, errors });
     }
   }

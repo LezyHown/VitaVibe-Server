@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PromoInvite</title>
+  </head>
+  <body>
+    <div style="display: flex; flex-direction: column; align-items: center; background: #171717; color:white; padding-top: 0.5rem; padding-bottom: 1rem; padding-left: 1rem; padding-right: 1rem;">
+      <img style="padding-top: 1rem" src="https://res.cloudinary.com/dejmvcqvh/image/upload/f_auto,q_auto/ai5emrnlxrjarqdkuqva" />
+      <hr style="background-color: #808080; height: 1px; width: 100%;" />
+      <h5 style="text-align: center; letter-spacing: 0.55;">
+        Отримайте зараз знижку в розмірі <span style="color:#fdc20c; letter-spacing: 0.9;">-<%= percentDiscount %>%</span> на покупки в  <span style="color:#fdc20c; letter-spacing: 0.9;">VitaVibe</span>! Натисніть нижче, щоб
+        підтвердити підписку на розсилку новин.
+      </h5>
+      <a
+        style="
+          padding-top: 10px;
+          padding-right: 15px;
+          padding-bottom: 10px;
+          padding-left: 15px;
+          background-color: #fdc20c;
+          margin-top: 1.5rem;
+          margin-bottom: 2rem;
+          font-weight: 400;
+          letter-spacing: 1;
+        "
+        href="<%= link %>"
+      >
+        <strong
+          style="color: #171717; font-family: arial; font-size: 20px; line-height: 30px"
+          >ПІДТВЕРДИТИ</strong
+        >
+      </a>
+      <h6 style="text-align: center;">У наступному листі ти знайдеш купон зі знижкою для онлайн-покупок.</h6>
+      <hr style="background-color: #808080; height: 1px; width: 100%;" />
+    </div>
+  </body>
+</html>

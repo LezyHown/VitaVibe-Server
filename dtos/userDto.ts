@@ -1,5 +1,5 @@
 import { pick } from "lodash";
-import { InvoiceAddress, InvoiceDeliveryEnum, UserAddress } from "../mongodb/models/userModel";
+import { InvoiceAddress, UserAddress } from "../mongodb/models/userModel";
 
 type UserGender = "male" | "female" | "other";
 

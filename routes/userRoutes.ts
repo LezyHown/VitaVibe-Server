@@ -1,10 +1,10 @@
 import { Router } from "express";
-
-import userController from "../сontrollers/user/userController";
-import { decryptParamsMiddleware } from "../middlewares/cryptoParamsMiddleware";
-import { tokenMiddleware } from "../middlewares/tokenMiddleware";
 import { createRequestLimiter } from "../config/config";
+import userController from "../сontrollers/user/userController";
+
 import recoveryMiddleware from "../middlewares/recoveryMiddleware";
+import { tokenMiddleware } from "../middlewares/tokenMiddleware";
+import { decryptParamsMiddleware } from "../middlewares/cryptoParamsMiddleware";
 
 const userRoutes = Router();
 

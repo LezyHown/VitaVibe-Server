@@ -30,10 +30,12 @@ app.use(cookieParser());
 import userRoutes from "./routes/userRoutes";
 import productsRoutes from "./routes/productsRoutes";
 import orderRoutes from "./routes/orderRoutes";
+import promoRoutes from "./routes/promoRoutes";
 
 app.use("/api/user", userRoutes);
 app.use("/api/products", productsRoutes);
 app.use("/api/order", orderRoutes);
+app.use("/api/promo", promoRoutes);
 
 app.use(errorHandler({ log: true, rootProperty: false }));
 

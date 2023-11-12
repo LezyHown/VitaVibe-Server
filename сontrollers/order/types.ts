@@ -16,6 +16,9 @@ export type CartProduct = ProductCartVariant & {
 export type Cart = {
   products: Record<CartProduct["_id"], CartProduct>;
   deliveryType: "post" | "courier";
+  promocode: {
+    code: string;
+  };
 };
 
 export type CartVariantModel = ProductCartVariant & {

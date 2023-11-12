@@ -3,42 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <title>Order</title>
-    <style>
-      body {
-        background-color: #272727;
-        color: white;
-        font-family: Arial, sans-serif;
-        font-size: 16px;
-      }
-
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-        border-radius: 10px;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-
-      th,
-      td {
-        padding: 10px;
-        text-align: left;
-        border-bottom: 1px solid white;
-      }
-
-      th {
-        background-color: #272727;
-        color: #f6d413;
-        font-weight: 600;
-      }
-    </style>
   </head>
-  <body>
-    <div class="container">
+  <body style="background-color: #272727; color: white; font-family: Arial, sans-serif; font-size: 16px">
+    <div class="max-width: 800px; margin: 0 auto; padding: 20px; border-radius: 10px;">
       <h1>Ваше замовлення № <%= orderNum %></h1>
       <p>Інформація про доставку:</p>
       <p>Адреса доставки:</p>
@@ -56,25 +23,71 @@
       <p>Дата замовлення: <%= orderDate.toLocaleString() %></p>
 
       <h2>Товари</h2>
-      <table>
+      <table style="width: 100%; border-collapse: collapse">
         <thead>
           <tr>
-            <th>Назва</th>
-            <th>Ціна</th>
-            <th>Розміри та кількість</th>
-            <th>Зображення</th>
+            <th
+              style="
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid white;
+                color: #f6d413;
+                font-weight: 600;
+              "
+            >
+              Назва
+            </th>
+            <th
+              style="
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid white;
+                color: #f6d413;
+                font-weight: 600;
+              "
+            >
+              Ціна
+            </th>
+            <th
+              style="
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid white;
+                color: #f6d413;
+                font-weight: 600;
+              "
+            >
+              Розміри та кількість
+            </th>
+            <th
+              style="
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid white;
+                color: #f6d413;
+                font-weight: 600;
+              "
+            >
+              Зображення
+            </th>
           </tr>
         </thead>
         <tbody>
           <% for (const productId in paymentVariants) { %> <% const product = paymentVariants[productId]; %>
           <tr>
-            <td><%= product.name + product.subTitle %></td>
-            <td><%= product.price %> <%= product.currency %></td>
-            <td>
+            <td style="padding: 10px; text-align: left; border-bottom: 1px solid white">
+              <%= product.name + product.subTitle %>
+            </td>
+            <td style="padding: 10px; text-align: left; border-bottom: 1px solid white">
+              <%= product.price %> <%= product.currency %>
+            </td>
+            <td style="padding: 10px; text-align: left; border-bottom: 1px solid white">
               <% for (const size in product.sizes) { %> <%= size %> - <%= product.sizes[size].quantity %><br />
               <% } %>
             </td>
-            <td><img src="<%= product.image %>" alt="<%= product.name %>" width="100" /></td>
+            <td style="padding: 10px; text-align: left; border-bottom: 1px solid white">
+              <img src="<%= product.image %>" alt="<%= product.name %>" width="100" />
+            </td>
           </tr>
           <% } %>
         </tbody>

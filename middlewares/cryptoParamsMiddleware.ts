@@ -14,28 +14,21 @@ export function encryptParams(params: object) {
 }
 
 /**
- * Middleware расшифровывает параметры из req.query.data и помещает их в качестве объектов Request Query
- * @param throwError Ошибка при неудаче расшифровки
+*Middleware розшифровує параметри з req.query.data і поміщає їх як об'єкти Request Query
+ *@param throwError Помилка при невдачі розшифровки
  *
- * Как результат разшифровки, зашифрованные параметры идут в Request.query
+ *Як результат розшифровки, зашифровані параметри йдуть у Request.query
  */
 export function decryptParamsMiddleware(throwError = true) {
-  return async function decryptParamsMiddleware(req: Request, res: Response, next: NextFunction) {
-    let invalidData: boolean = false;
-
-    if (req.query.data) {
-      try {
-        const params = AES.decrypt(String(req.query.data), PARAMS_SALT).toString(enc.Utf8);
-        req.query = { ...JSON.parse(params) };
-      } catch {
-        invalidData = true;
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const params = AES.decrypt(String(req.query.data), PARAMS_SALT).toString(enc.Utf8);
+      req.query = { ...JSON.parse(params) };
+    } catch {
+      if (throwError) {
+        next(createHttpError(HttpStatusCode.BadRequest, "Invalid data"));
       }
     }
-
-    if (throwError && invalidData) {
-      next(createHttpError(HttpStatusCode.BadRequest, "Invalid data"));
-    } else {
-      next();
-    }
+    next();
   };
 }
