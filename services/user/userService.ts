@@ -50,7 +50,7 @@ class UserService {
     });
 
     if (newsSubscription) {
-      const subscriber = await newsSubscriber.create({ email: user.personalInfo.email });
+      const subscriber = await newsSubscriber.findOne({ email }) ?? await newsSubscriber.create({ email });
       user.newsSubscriber = subscriber.id;
       await user.save();
     }
