@@ -9,7 +9,7 @@ import dbconnection from "./mongodb/connection";
 import "dotenv/config";
 
 // Настройка API
-const app = express();
+export const app = express();
 dbconnection.startConnection();
 
 // Использование необнодимых middlewares

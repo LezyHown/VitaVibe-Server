@@ -20,8 +20,8 @@ class OrderService {
 
     const mismatchedVariants: MismatchedVariant[] = [];
     const paymentVariants: Cart["products"] = {};
-    var totalCount = 0;
-    var totalPrice = 0;
+    let totalCount = 0;
+    let totalPrice = 0;
 
     cartVariantKeys.map((variantId) => {
       const variants = productModels
@@ -55,7 +55,8 @@ class OrderService {
 
             // Будую кожний продукт кошика на основі актуальних даних (уникнаючи підміну даних)
             paymentVariants[variantId] = assign(cartProducts[variantId], {
-              ...pick(variant, "color", "price", "oldPrice", "subTitle", "name", "currency"),
+              ...pick(variant, "color", "oldPrice", "subTitle", "name", "currency"),
+              price: Number(itemPrice.toFixed(2)),
               image: variant.images[0].thumbnail,
             });
           }
