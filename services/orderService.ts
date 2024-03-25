@@ -11,7 +11,7 @@ class OrderService {
   async getPaymentDetails(cart: Cart) {
     const { products: cartProducts, deliveryType, promocode } = cart;
     
-    if (promocode) {
+    if (promocode.code) {
       var { percentDiscount } = await promoService.testPromoCode(promocode.code);
     }
 
