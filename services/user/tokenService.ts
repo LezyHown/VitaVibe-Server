@@ -26,8 +26,7 @@ class TokenService {
     res.cookie(REFRESH_COOKIENAME, tokens.refresh, {
       maxAge: ms(REFRESH_EXPIRY_TIME),
       httpOnly: true,
-      sameSite: "none",
-      secure: true, // 'true' if use HTTPS
+      sameSite: "lax"
     });
 
     return tokens;

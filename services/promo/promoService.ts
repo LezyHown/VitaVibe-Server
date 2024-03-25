@@ -33,10 +33,12 @@ class PromoService {
     return { code: originalCode, endDate, percentDiscount };
   }
   async testPromoCode(code: string) {
-    // Шукаєм зашифрований промокод
     const promocode = await promoCodeModel.findOne({ code: md5(code) });
 
-    if (!promocode) throw createHttpError(HttpStatusCode.NotFound, "Промокод не знайдено");
+    if (!promocode) {
+      throw createHttpError(HttpStatusCode.NotFound, "Промокод не знайдено");
+    }
+
     const { percentDiscount } = promocode;
 
     if (moment().isAfter(promocode.endDate)) {

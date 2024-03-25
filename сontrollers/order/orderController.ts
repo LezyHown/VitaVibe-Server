@@ -7,7 +7,7 @@ import { pick } from "lodash";
 import Stripe from "stripe";
 import orderService from "../../services/orderService";
 
-import UserDto, { IUserPayload } from "../../dtos/userDto";
+import { IUserPayload } from "../../dtos/userDto";
 import userModel from "../../mongodb/models/userModel";
 import mailService from "../../services/mail/mailService";
 import orderModel from "../../mongodb/models/orderModel";
