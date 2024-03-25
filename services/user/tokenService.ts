@@ -9,7 +9,7 @@ import tokenModel, { ACCESS_EXPIRY_TIME, REFRESH_EXPIRY_TIME } from "../../mongo
 import { createHttpError } from "../httpErrorService";
 import { HttpStatusCode } from "axios";
 
-type TokenType = "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"; 
+type TokenType = "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET";
 type TokenSet = { access: string; refresh: string };
 const REFRESH_COOKIENAME = "REFRESH_TOKEN";
 
@@ -24,26 +24,28 @@ class TokenService {
     };
 
     res.cookie(REFRESH_COOKIENAME, tokens.refresh, {
+      path: "/",
       maxAge: ms(REFRESH_EXPIRY_TIME),
       httpOnly: true,
-      sameSite: "lax"
+      sameSite: "none",
+      secure: true
     });
 
     return tokens;
   }
 
-  public generateAccessToken(payload: IUserPayload, time?: string){
+  public generateAccessToken(payload: IUserPayload, time?: string) {
     return jwt.sign(payload, String(process.env.JWT_ACCESS_SECRET), { expiresIn: time ?? "20m" });
   }
 
-  public async removeRefreshToken(refresh: string, res: Response){
-    const refreshToken = await tokenModel.findOne({ "refreshToken": refresh }); 
-    
+  public async removeRefreshToken(refresh: string, res: Response) {
+    const refreshToken = await tokenModel.findOne({ refreshToken: refresh });
+
     if (!refreshToken) {
       res.clearCookie(REFRESH_COOKIENAME);
       throw createHttpError(HttpStatusCode.Unauthorized, "Need sign-in again");
     }
-    
+
     // Убираем токен из token коллекции
     await refreshToken.deleteOne();
     res.clearCookie(REFRESH_COOKIENAME);
@@ -53,10 +55,9 @@ class TokenService {
     try {
       const jwtPayload = jwt.verify(token, String(process.env[type])) as object;
       const payload = new UserDto(jwtPayload).getPayload();
-      
+
       return payload;
-    } 
-    catch {
+    } catch {
       return null;
     }
   }
@@ -67,8 +68,8 @@ class TokenService {
     if (token) {
       token.refreshToken = refreshToken;
     }
- 
-    return await (token ?? await tokenModel.create({ user: userId, refreshToken })).save();
+
+    return await (token ?? (await tokenModel.create({ user: userId, refreshToken }))).save();
   }
 }
 

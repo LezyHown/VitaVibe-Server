@@ -16,7 +16,7 @@ dbconnection.startConnection();
 app.use(express.static(path.join(__dirname, "public")));
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: [String(process.env.CLIENT_URL), String(process.env.API_URL)],
     credentials: true,
   })
 );
