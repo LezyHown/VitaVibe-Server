@@ -10,8 +10,11 @@ import promoService from "./promo/promoService";
 class OrderService {
   async getPaymentDetails(cart: Cart) {
     const { products: cartProducts, deliveryType, promocode } = cart;
-    const { percentDiscount } = await promoService.testPromoCode(promocode.code);
     
+    if (promocode) {
+      var { percentDiscount } = await promoService.testPromoCode(promocode.code);
+    }
+
     const cartVariantKeys = Object.keys(cartProducts);
     const productsIds = cartVariantKeys.map(
       (variantId) => new Types.ObjectId(cartProducts[variantId].productRefId)

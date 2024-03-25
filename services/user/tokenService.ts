@@ -27,7 +27,7 @@ class TokenService {
       maxAge: ms(REFRESH_EXPIRY_TIME),
       httpOnly: true,
       sameSite: "none",
-      secure: false, // 'true' if use HTTPS
+      secure: true, // 'true' if use HTTPS
     });
 
     return tokens;
