@@ -10,8 +10,8 @@ import promoService from "./promo/promoService";
 class OrderService {
   async getPaymentDetails(cart: Cart) {
     const { products: cartProducts, deliveryType, promocode } = cart;
-    
-    if (promocode.code) {
+
+    if (promocode) {
       var { percentDiscount } = await promoService.testPromoCode(promocode.code);
     }
 
@@ -41,22 +41,17 @@ class OrderService {
           }
 
           if (selectedQuantity < 1 || selectedQuantity > count) {
-            // Формуєм зайвий товар, який не може бути купленим (Невідповідний товар)
             mismatchedVariants.push({ variantId, size, quantity: selectedQuantity });
           } else {
-            // Ціна товара
             let itemPrice = selectedQuantity * variant.price;
-            // Знижка на товар (промокод)
+
             if (!variant.oldPrice && percentDiscount > 0) {
               itemPrice -= (itemPrice / 100) * percentDiscount;
             }
 
-            // Додаєм ціну до загальної суми
             totalPrice += itemPrice;
-            // Загальна кількість товару
             totalCount += selectedQuantity;
 
-            // Будую кожний продукт кошика на основі актуальних даних (уникнаючи підміну даних)
             paymentVariants[variantId] = assign(cartProducts[variantId], {
               ...pick(variant, "color", "oldPrice", "subTitle", "name", "currency"),
               price: Number(itemPrice.toFixed(2)),
@@ -100,7 +95,7 @@ class OrderService {
     for (const model of productModels) {
       for (const variantId of cartVariantKeys) {
         const variantModel = model.variants.find(({ id }) => id === variantId);
-        
+
         if (variantModel) {
           const sizeIndex = variantModel.sizes.findIndex(({ size }) => products[variantId].sizes[size]);
           const availableSize = sizeIndex !== -1;

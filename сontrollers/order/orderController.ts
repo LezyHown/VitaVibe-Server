@@ -52,7 +52,10 @@ class OrderController {
         );
 
         await orderService.decreaseProductsByCartQuantity(cart.products);
-        await promoService.usePromoCode(cart.promocode.code);
+        
+        if (cart.promocode) { 
+          await promoService.usePromoCode(cart.promocode.code);
+        }
 
         const order = await orderService.createOrderModel(
           payload,
