@@ -51,7 +51,8 @@
   },
   "scripts": {
     "build": "npx tsc",
-    "start": "ts-node-esm index.ts"
+    "start": "ts-node-esm index.ts",
+    "vercel-build": "echo deploy success"
   },
   "keywords": [],
   "author": "",
